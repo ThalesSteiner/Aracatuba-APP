@@ -59,7 +59,7 @@ class Iniciar:
                         st.session_state.logged_in = True
                         st.success("Login realizado com sucesso!")
                         st.session_state.user_info = user_info
-                        st.rerun()
+                        st.rerun(scope="fragment)
                         
                         Iniciar.iniciar()
                     else:
