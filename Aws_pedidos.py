@@ -22,14 +22,98 @@ class AWS:
             region_name=region_name
         )
     
+    
+    #Busca as lojas para enviar para o APP
     def buscar_clientes(self):
         self.aws_conexão()
-        table = self.dynamodb.Table('Clientes')
+        table = self.dynamodb.Table('Clientes_Lista')
         response = table.scan()
         clientes = response['Items']
-        #st.info("Empresas buscadas")
-        return [cliente['Nome'] for cliente in clientes]
+        return clientes[0]["Clientes"]
+    
+    def buscar_pedido_ID(self, ID):
+        self.aws_conexão()
+        try:
+            # Acessar a tabela
+            tabela = self.dynamodb.Table('Pedidos_ID')
 
+            # Executar a busca
+            resposta = tabela.get_item(
+                Key={
+                    'ID': ID  # ID é do tipo número
+                }
+            )
+
+            # Retornar o item encontrado ou None se não encontrado
+            return resposta.get('Item')
+
+        except Exception as e:
+                print(f"Erro ao buscar item na tabela pedido id: {e}")
+                return False
+
+    def buscar_pedido_controle_coleta(self, ID):
+        self.aws_conexão()
+        try:
+            # Acessar a tabela
+            tabela = self.dynamodb.Table('Controle_Coleta')
+
+            # Executar a busca
+            resposta = tabela.get_item(
+                Key={
+                    'ID': str(ID)
+                }
+            )
+
+            # Retornar o item encontrado ou None se não encontrado
+            return resposta.get('Item')
+
+        except Exception as e:
+                print(f"Erro ao buscar item controle coleta: {e}")
+                return False
+
+    def buscar_cadastro_empresa(self, Nome):
+        self.aws_conexão()
+        try:
+            # Acessar a tabela
+            tabela = self.dynamodb.Table('Cadastro_Cliente')
+
+            # Executar a busca
+            resposta = tabela.get_item(
+                Key={
+                    'Nome': str(Nome)
+                }
+            )
+
+            # Retornar o item encontrado ou None se não encontrado
+            return resposta.get('Item')
+
+        except Exception as e:
+                print(f"Erro ao buscar empresa cadastro de empresa: {e}")
+                return False
+    
+    def buscar_Estoque(self, Estoque):
+        self.aws_conexão()
+        try:
+            # Acessar a tabela
+            tabela = self.dynamodb.Table('Estoque_Parafusos')
+
+            # Executar a busca
+            resposta = tabela.get_item(
+                Key={
+                    'Estoque': str(Estoque),
+
+                    
+                }
+            )
+
+            # Retornar o item encontrado ou None se não encontrado
+            return resposta.get('Item')
+
+        except Exception as e:
+                print(f"Erro ao buscar empresa cadastro de empresa: {e}")
+                return False
+    
+    #Adiciona o cliente na tabela de cliente, Tabela usada para iniciar todas as lojas no sistema
     def adicionar_cliente(self, nome):
         self.aws_conexão()
         table = self.dynamodb.Table('Clientes')
@@ -39,8 +123,25 @@ class AWS:
             }
         )
         print(f"Cliente {nome} adicionado com sucesso!")
-    
 
+
+    def adicionar_cliente_tabela_Cliente_lista(self, cliente_nome):
+        self.aws_conexão
+        table = self.dynamodb.Table('Clientes_Lista')
+
+        # Atualiza o item, adicionando o novo nome à lista
+        response = table.update_item(
+            Key={'ID': 'ListaClientes'},
+            UpdateExpression="SET Clientes = list_append(if_not_exists(Clientes, :empty_list), :cliente_nome)",
+            ExpressionAttributeValues={
+                ':cliente_nome': [cliente_nome],
+                ':empty_list': []
+            },
+            ReturnValues="UPDATED_NEW"
+        )
+        return response
+    
+    #Adiciona a cliente na tabela de Pedido para consultar todas as atividades do cliente
     def adicionar_loja_tabela_pedidos(self, nome):
         self.aws_conexão()
         try:
@@ -55,7 +156,7 @@ class AWS:
         except Exception as e:
             print(f"Erro ao cadastrar cliente: {e}")
     
-    
+    #Adiciona Pedido no historico do cliente
     def adicionar_pedido_tabela_pedidos(self, nome_cliente, Pedido):
         self.aws_conexão()
         try:
@@ -82,13 +183,31 @@ class AWS:
                 print(f"Pedido '{Pedido_str}' adicionado ao cliente {nome_cliente}.")
             return "Sucesso"
         except Exception as e:
-            print(f"Erro ao adicionar pedido: {e}")
+            print(f"Erro ao adicionar pedido na tabela de pedidos: {e}")
             return "Falha"
 
-
-    
+    #Adiciona Pedido na tabela de Pedidos com id
     def adicionar_pedido_tabela_pedidosID(self, Pedido):
-        print("-------------------------------")
+        self.aws_conexão()
+        try:
+            table = self.dynamodb.Table("Pedidos_ID")
+            table.put_item(Item=Pedido)
+            print("Pedido adicionado com sucesso.")
+        except Exception as e:
+            print(f"Erro ao adicionar pedido a tabela de pedidos ID: {e}")
+            
+    
+    def Adicionar_estoque_cartela(self, Estoque, Estoque_produto):
+        self.aws_conexão()
+        try:
+            table = self.dynamodb.Table("Estoque_Parafusos")
+            table.put_item(Item={"Estoque": Estoque,
+                                 "Quantidade": Estoque_produto})
+            print("Pedido adicionado com sucesso.")
+        except Exception as e:
+            print(f"Erro ao adicionar pedido a tabela de Estoque: {e}")
+    
+    def Adicionar_cliente(self, Pedido):
         self.aws_conexão()
         try:
             table = self.dynamodb.Table("Pedidos_ID")
@@ -98,7 +217,18 @@ class AWS:
             print(f"Erro ao adicionar pedido: {e}")
 
 
+
+    def adicionar_pedido_Controle_Coleta(self, Pedido):
+        self.aws_conexão()
+        try:
+            table = self.dynamodb.Table("Controle_Coleta")
+            table.put_item(Item=Pedido)
+            print("Pedido adicionado com sucesso.")
+        except Exception as e:
+            print(f"Erro ao adicionar pedido: {e}")
         
+    
+    #Gera um novo ID para o pedido que vai para tabela de pedidos com ID
     def Gerar_novo_id(self):
         self.aws_conexão()
         table = self.dynamodb.Table('Counters')
@@ -113,50 +243,25 @@ class AWS:
             ReturnValues="UPDATED_NEW"
         )
         return response['Attributes']['CounterValue']
-
-    def adicionar_usuario(self, Credencial):
-        self.aws_conexão()
-        try:
-            table = self.dynamodb.Table('Usuario_senhas')
-            response = table.put_item(
-                Item=Credencial
-            )
-            print(f"Credencial {Credencial[0]} cadastrado com sucesso!")
-        except Exception as e:
-            print(f"Erro ao cadastrar cliente: {e}")
     
-    def Validar_login(self, login, senha):
-        self.aws_conexão()
-        try:
-            table = self.dynamodb.Table("Usuario_senhas")
-            # Faça a chamada para consultar a tabela
-            response = table.query(
-                KeyConditionExpression=Key('Usuario').eq(login),
-                FilterExpression=Attr('Senha').eq(senha)
-            )
-
-            # Verifique os itens retornados
-            items = response.get('Items', [])
-            if items:
-                print("Item(s) encontrado(s):", items)
-                return True
-            else:
-                print("Item não encontrado")
-                return False
-        except Exception as e:
-            print(f"Erro ao validar cliente: {e}")
-            return False
-    
+    #Validar login usando api gateway na função lambda
     def Validar_login_api(self, login):
         url = "https://ccgss8scpj.execute-api.us-east-1.amazonaws.com/Teste"
         headers = {
             "Content-Type": "application/json"
         }
-
         response = requests.post(url, data=json.dumps(login), headers=headers)
-
-        print(response.status_code)
-        print(response.json())
         return response.json()
     
+    #Cadastra as informações dos clientes
+    def cadastro_cliente_endereço(self, endereço):
+        self.aws_conexão()
+        try:
+            table = self.dynamodb.Table('Cadastro_Cliente')
+            response = table.put_item(
+                Item=endereço
+            )
+            print(f"Endereço cadastrado com sucesso!")
+        except Exception as e:
+            print(f"Erro ao cadastrar cliente: {e}")
     

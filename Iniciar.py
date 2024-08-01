@@ -1,10 +1,10 @@
 import streamlit as st
-from APP import MultiplasTelas  # Supondo que você tenha esta classe implementada em APP.py
-from Aws_pedidos import AWS  # Supondo que você tenha esta classe implementada em Aws_pedidos.py
+from APP import MultiplasTelas
+from Aws_pedidos import AWS 
 import json
 
-# Configurar a página
-st.set_page_config(page_title="Login Page", layout="wide")
+#layout="wide"
+st.set_page_config(page_title="Aracatuba Parafusos", page_icon="🔨",)
 
 class Iniciar:
     def __init__(self):
@@ -44,9 +44,9 @@ class Iniciar:
     def main():
         # Inicializar a variável de sessão para o login
         if 'logged_in' not in st.session_state:
-            st.session_state.logged_in = False
+            st.session_state["logged_in"] = False
 
-        if not st.session_state.logged_in:
+        if not st.session_state["logged_in"]:
             # Exibir tela de login
             st.title("Login")
             username = st.text_input("Usuário")
@@ -56,10 +56,10 @@ class Iniciar:
                 try:
                     result, user_info = Iniciar.check_credentials(username, password)
                     if result:
-                        st.session_state.logged_in = True
+                        st.session_state["logged_in"] = True
                         st.success("Login realizado com sucesso!")
                         st.session_state.user_info = user_info
-                        st.rerun(scope="fragment")
+                        st.rerun()
                         
                         Iniciar.iniciar()
                     else:

@@ -8,23 +8,17 @@ from streamlit_extras.grid import grid
 import boto3
 import requests
 from datetime import datetime
-import streamlit_authenticator as stauth
 from Aws_pedidos import AWS
-
+import re
+import json
 
 class MultiplasTelas:
     def __init__(self):
         self.tamanho_max_cartela = 128
-        self.user = "ADMIN"
-        self.senha = "123"
         self.meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-        self.estoque_cartela = self.Gerar_estoque(150, 250)
-        self.estoque_parafusos = self.Gerar_estoque(10000, 25000)
-        self.df_gerar = False
         self.df_pedidos = False
-        self.buscar_cliente = False
         self.empresas =  ["Nenhuma"] + self.buscar_clientes()
-        self.lista_abas = []
+        self.f = []
 
 
     @st.cache_data
@@ -33,27 +27,93 @@ class MultiplasTelas:
 
 
     def Controle_coleta(self):
-        st.title("Controle de Coleta")
-        mygrid =  grid(2, 2, 1, vertical_align="bottom")
-        # Definindo variáveis para armazenar os valores inseridos pelo usuário
-        data_recebimento = st.date_input("Data de recebimento", format="DD/MM/YYYY")
-        Mês = st.selectbox("Mês referência", self.meses)
-        ID_compra = st.text_input("ID compra")
-        Nome_empresa = st.selectbox("Nome empresa", self.empresas)
-        Valor = st.number_input("Valor")
-        Forma_pagamento = st.radio("Selecione suas opções:", ["PIX", "Dinheiro", "Débito","Boleto"])
+        tab1, tab2, tab3= st.tabs(["Controle", "Consulta débito", "Consulta pedido"])
+        
+        with tab1:
+            ID_compra = st.text_input("ID compra")
+    
+            # Definindo variáveis para armazenar os valores inseridos pelo usuário
+            data_recebimento = st.date_input("Data de recebimento", format="DD/MM/YYYY")
+            mes = data_recebimento.month
+            ano = data_recebimento.year
+            
+            Nome_empresa = st.selectbox("Nome empresa", self.empresas)
+            Valor = st.number_input("Valor")
+            Detalhe_pedido = st.radio("Algum debito ficou pendente", ["Não", "Sim"])
+            if Detalhe_pedido == "Sim":
+                Valor_pendente = st.number_input("Valor pendente")    
+            Forma_pagamento = st.radio("Selecione forma pagamento:", ["PIX", "Dinheiro", "Débito","Boleto","Cheque"])
+            
 
-        if st.button("Confirmar Ordens"):
-            st.success(f"Ordem confirmada, pedido {ID_compra} da empresa {Nome_empresa} no valor de {Valor} enviado")
-            time.sleep(3)
-            mensagem = st.empty()
+            if st.button("Confirmar Ordens"):
+                if Detalhe_pedido == "Não":
+                    Valor_pendente = 0
+                    Status = "Quitado"
+                else:
+                    Status = "Em debito"
+                dic = {
+                    "ID": (ID_compra),
+                    "Status": str(Status),
+                    "Data recebimento": str(data_recebimento),
+                    "Nome da empresa": str(Nome_empresa),
+                    "Valor": int(Valor),
+                    "Debito": str(Detalhe_pedido),
+                    "Valor pendente": str(Valor_pendente),
+                    "Forma pagamento": str(Forma_pagamento)
+                }
+                AWS().adicionar_pedido_Controle_Coleta(dic)
+                st.success(f"Ordem confirmada, pedido {ID_compra} da empresa {Nome_empresa} no valor de {Valor} enviado")
+        with tab2:
+            st.title("Consulta de débito")
+            Id = st.text_input("Coloque o ID da consulta")
+            if st.button("Pesquisar"):
+                try:
+                    pedido = AWS().buscar_pedido_controle_coleta(Id)
+                    mygrid =  grid(3,2, 3, vertical_align="bottom")
+                    mygrid.text_input("Status",  value=pedido["Status"])
+                    mygrid.text_input("ID",  value=pedido["ID"])
+                    mygrid.text_input("Nome da empresa",  value=pedido["Nome da empresa"])
+                    mygrid.text_input("Data recebimento",  value=pedido["Data recebimento"])
+                    mygrid.text_input("Forma pagamento",  value=pedido["Forma pagamento"])
+                    mygrid.text_input("Valor do pedido",  value=float(pedido["Valor"]))
+                    mygrid.text_input("Débito",  value=pedido["Debito"])
+                    mygrid.text_input("Valor pendente",  value=pedido["Valor pendente"])
+                    #style_metric_cards(background_color="5c6671")
+                    #st.success("Pedido ")
+                except:
+                    st.warning("Pedido não achado")
+        with tab3:
+            st.title("Consulta de Pedido")
+            Id = st.text_input("Coloque o ID da consulta", key="Id2")
+
+
+            if st.button("Pesquisar", key="Botão2"):
+                pedido = AWS().buscar_pedido_ID(Id)
+                mygrid =  grid(4,3, vertical_align="bottom")
+                mygrid.text_input("Loja",  value=pedido["Loja"])
+                mygrid.text_input("ID",  value=int(pedido["ID"]))
+                mygrid.text_input("Data",  value=pedido["Data"])
+                mygrid.text_input("Tipo de Venda",  value=pedido["Tipo de Venda"])
+                mygrid.text_input("Valor Cartela",  value=pedido["Valor da cartela"])
+                df = pd.DataFrame(list(pedido["Pedidos"].items()), columns=['Tamanho', 'Quantidade'])
+                df['Quantidade'] = pd.to_numeric(df['Quantidade'])
+                #df['Tamanho'] = pd.to_numeric(df['Tamanho'])
+                #lista_tam = df['Tamanho'].tolist()
+                #df['Tamanho'] = [f"Cartela {int(tam)}" for tam in lista_tam]
+                st.title("Tabela do Pedido")
+                st.dataframe(df, width=400, height=600)
+                mygrid.text_input("Quantidade de Parafusos",  value=sum(df["Quantidade"].tolist()))
+                mygrid.text_input("Valor total do pedido:",  value=(sum(df["Quantidade"].tolist()) * float(pedido["Valor da cartela"])))
+                #style_metric_cards(background_color="5c6671")
+
+
 
     def cadastro_empresa(self):
-        tab1, tab2 ,tab3= st.tabs(["Empresa", "Expositor", "Rota"])
+        tab1, tab2 ,tab3, tab4= st.tabs(["Empresa", "Expositor", "Rota", "Consultar Empresa"])
         with tab1:
             st.title("Cadastro de Empresas")
             st.write("Dados Gerais",)
-            my_grid = grid(3, 2, [2,1,1], [2,1,1], vertical_align="bottom")
+            my_grid = grid(3, 2, [2,1,1], [2,2,1,1], vertical_align="bottom")
             #row1
             Nome_nova_empresa = my_grid.text_input("Nome / Razão social")
             Nome_representante = my_grid.text_input("Nome do representante")
@@ -68,6 +128,7 @@ class MultiplasTelas:
 
             #row4
             Rua = my_grid.text_input("Rua")
+            Bairro = my_grid.text_input("Bairro")
             Numero = my_grid.text_input("Numero")
             Complemento = my_grid.text_input("Complemento")
 
@@ -76,9 +137,35 @@ class MultiplasTelas:
         
 
             if st.button("Confirmar Cadastro"):
-                st.success(f"Cadastro da empresa {Nome_nova_empresa} feito com sucesso!")
-                time.sleep(3)
-                mensagem = st.empty()
+                try:
+                    dic = {
+                        "Nome": Nome_nova_empresa,
+                        "Representante": Nome_representante,
+                        "Status": "Ativo",
+                        "Data cadastro": Data_cadastro,
+                        "CPF/CNPJ": Cpf_cnpj,
+                        "Telefone_contato": Telefone_contato,
+                        "Email": Gmail, 
+                        "Endereco": {
+                            "Rua": Rua,
+                            "Numero": Numero,
+                            "Bairro": Bairro,
+                            "Cidade": Cidade,
+                            "Uf": Uf,
+                            "Cep": Cep,
+                            "Complemento": Complemento
+                        }
+                    }
+                    print("TESTANDO")
+                    AWS().cadastro_cliente_endereço(dic)
+                    AWS().adicionar_cliente(Nome_nova_empresa)
+                    AWS().adicionar_cliente_tabela_Cliente_lista(Nome_nova_empresa)
+                    AWS().adicionar_loja_tabela_pedidos(Nome_nova_empresa)
+                    
+                    st.success(f"Cadastro da empresa {Nome_nova_empresa} feito com sucesso!")
+                except:
+                    st.warning(f"Falha ao cadastrar")
+                    
         with tab2:
             st.title("Cadastro de Expositor")
             st.date_input("Data", format="DD/MM/YYYY")
@@ -103,30 +190,103 @@ class MultiplasTelas:
 
             if st.button("Cadastar Rota"):
                 st.success(f"Nova rota cadastrada com sucesso!")
+        with tab4:
+            st.title("Consulta de Empresa")
+            empresa = st.selectbox("Nome da empresa", self.empresas, key="empresa2")
+            if st.button("Pesquisar", key="Botão3"):
+                col1, col2 = st.tabs(["Dados gerais", "Endereço"])
+                with col1:
+                    try:
+                        Cadastro = AWS().buscar_cadastro_empresa(empresa)
+                        if Cadastro["Data cadastro"] == "":
+                            Cadastro["Data cadastro"] = "Não cadastrado"
+                        mygrid =  grid(3,2,2,2, vertical_align="bottom")
+                        mygrid.text_input("Loja",  Cadastro["Nome"])
+                        mygrid.text_input("CPF/CNPJ",  Cadastro["CPF/CNPJ"])
+                        mygrid.text_input("Status",  Cadastro["Status"])
+                        mygrid.text_input("Representante",  Cadastro["Representante"])
+                        mygrid.text_input("Telefone contato",  Cadastro["Telefone_contato"])
+                        mygrid.text_input("Data cadastro",  Cadastro["Data cadastro"])
+                        mygrid.text_input("Email",  Cadastro["Email"])
+                        #style_metric_cards(background_color="5c6671")
+                    except:
+                        st.warning("Empresa não encontrada")
+                with col2:
+                    try:
+                        #st.json(Cadastro)
+                        mygrid =  grid(3,2,2,1, vertical_align="bottom")
+                        mygrid.text_input("Rua",  Cadastro["Endereco"]["Rua"])
+                        mygrid.text_input("Numero",  Cadastro["Endereco"]["Numero"])
+                        mygrid.text_input("Bairro",  Cadastro["Endereco"]["Bairro"])
+                        mygrid.text_input("Cidade",  Cadastro["Endereco"]["Cidade"])
+                        mygrid.text_input("Uf",  Cadastro["Endereco"]["Uf"])
+                        mygrid.text_input("Cep",  Cadastro["Endereco"]["Cep"])
+                        mygrid.text_input("Complemento",  Cadastro["Endereco"]["Complemento"])
+                    except:
+                        st.warning("Empresa não encontrada")
+                    try:
+                        mygrid.text_input("Endereço no antigo sistema",  Cadastro["Endereco anterior"])
+                    except:
+                        st.info("Nenhum endereço do antigo sistema foi achado")
+                #st.json(Cadastro, expanded=False)
+
 
     def cadastro_novo_pedido(self):
         st.title("Cadastro de novos pedidos")
         lista = []
         for i in range(1, self.tamanho_max_cartela+1):
-            lista.append({"Cartela": f"Cartela {i}", "Quantidade": 0})
+            lista.append({"Tamanho": f"Cartela {i}", "Quantidade": 0})
         df2 = pd.DataFrame(lista)
-        edited_df = st.data_editor(df2, height=500, width=400)
+        df = st.data_editor(df2, height=500, width=400)
 
-        st.selectbox("loja", self.empresas)
+        loja = st.selectbox("loja", self.empresas)
+        
+        data = st.date_input("Data do Pedido", format="DD/MM/YYYY")
 
-        st.radio("Forma de Venda", ["Consignado", "Venda"])
+        venda = st.radio("Forma de Venda", ["Consignado", "Venda"])
 
-        st.number_input("Valor da Cartela")
-
+        valor_cartela = st.number_input("Valor da Cartela")
 
         if st.button("Confirmar Cadastro"):
-                st.success(f"Cadastro da empresa feito com sucesso!")
-                print(edited_df["Quantidade"].tolist())
-                mensagem = st.empty()
+                df = df[df['Quantidade'] != 0]
+                #df["Tamanho"] = [cartela.split(" ")[1] for cartela in df["Tamanho"].tolist()]
+                pedido = dict(zip(df['Tamanho'], df['Quantidade']))
+
+                if pedido == {'Tamanho': {}, 'Quantidade': {}}:
+                    st.warning("Pedido vazio")
+                else:
+                    try:
+                        quantidade_parafusos = sum(df['Quantidade'].tolist())
+                        Id = AWS().Gerar_novo_id()
+                        dic = {"ID": str(Id),
+                            "Loja": loja,
+                            "Data": str(data),
+                            "Tipo de Venda": venda,
+                            "Valor da cartela": str(valor_cartela),
+                            "Pedidos": pedido
+                            }
+                        
+                        controle_coleta = {
+                            "ID": (str(Id)),
+                            "Status": str("Em debito"),
+                            "Data recebimento": str(data),
+                            "Nome da empresa": str(loja),
+                            "Valor": str(float(quantidade_parafusos) * float(valor_cartela)),
+                            "Debito": "Sim",
+                            "Valor pendente": str(float(quantidade_parafusos) * float(valor_cartela)),
+                            "Forma pagamento": "Não declarada"}
+                        
+                        AWS().adicionar_pedido_tabela_pedidos(loja,dic)
+                        AWS().adicionar_pedido_tabela_pedidosID(dic)
+                        AWS().adicionar_pedido_Controle_Coleta(controle_coleta)
+                        st.success(f"Cadastro da empresa feito com sucesso!")
+                    except:
+                        st.warning("ERRO AO CADASTRAR")
+
     
-
-
+    
     def Separar_pedido(self):
+
         st.title("Cadastro de novos pedidos")
         uploaded_file = st.file_uploader("Escolha um arquivo")
         if uploaded_file is not None:
@@ -194,7 +354,8 @@ class MultiplasTelas:
                 dict_chave_valor = dict(zip(df['Tamanho'], df['Quantidade']))
                 id = int(AWS().Gerar_novo_id())
                 data = self.Data_hora()
-                dic = {"ID": id,
+                dic = {"ID": str(id),
+                    "Loja": Lojas[i],
                     "Data": data,
                     "Pedidos": dict_chave_valor}
                 AWS().adicionar_pedido_tabela_pedidos(Lojas[i],dic)
@@ -204,8 +365,7 @@ class MultiplasTelas:
                 pass
             i += 1
         #st.write(self.Data_hora())
-        #st.write(data_frame2)
-        
+        #st.write(data_frame2)  
 
 
     def Data_hora(self):
@@ -223,27 +383,6 @@ class MultiplasTelas:
             st.write("Data e hora do sistema (formatada):", hora_sistema_formatada)
             return f"{hora_sistema_formatada}"
 
-
-    def Login(self):
-        st.title("Login")
-
-        # Widgets para entrada de usuário e senha
-        username_input = st.text_input("Nome de usuário")
-        password_input = st.text_input("Senha", type="password")
-
-        # Botão de login
-        if st.button("Login"):
-            if self.autenticacao(username_input, password_input):
-                st.success("Login bem-sucedido!")
-                self.main()
-            else:
-                st.error("Credenciais inválidas. Tente novamente.")
-
-    def autenticacao(self, username, password):
-        if username == self.user and password == self.senha:
-            return True
-        else:
-            return False
 
     def gerar_dado(self):
         dados = {'Ano': [], 'Mês': [], 'Loja': []}
@@ -270,12 +409,6 @@ class MultiplasTelas:
         soma_linhas = df.iloc[:, 3:].sum(axis=1)
         df.insert(3, "Quantidade", soma_linhas)
         self.df_pedidos = df
-
-
-    def adicionar_cliente(self, nome):
-        AWS.adicionar_cliente()
-
-
 
 
     def Dashboard(self):
@@ -440,7 +573,6 @@ class MultiplasTelas:
             st.error("Coloque um periodo")
 
 
-
     def projetar_grafico(self, dataframe, Titulo, x, y, ordenar="Não", suavizar="Sim"):
         fig = px.bar(dataframe, title=Titulo, x=x, y=y, width=500, height=700)
         if suavizar == "Sim":
@@ -451,45 +583,69 @@ class MultiplasTelas:
             fig.update_layout(yaxis=dict(categoryorder='total ascending'))
         return fig
 
-    def Gerar_estoque(self, min, max):
-        dics = {"Cartela": [], "Quantidade": []}
-        self.gerar_dado == True
-        for i in range(self.tamanho_max_cartela):
-            dics["Cartela"].append(f"Cartela {i+1}")
-            dics["Quantidade"].append(np.random.randint(min, max))
-        return pd.DataFrame(dics)
+    @st.cache_data
+    def tabela_estoque_formatada(_self, Estoque):
+        estoque_atual = AWS().buscar_Estoque(Estoque)
+        df = pd.DataFrame(estoque_atual)
+        df = df.reset_index()
+        df2 = pd.DataFrame()
+        df2["Cartela"] = df["index"]           
+        df2["Quantidade"] = df["Quantidade"]
+        df2['Número'] = df2["Cartela"].str.extract('(\d+)').astype(int)
+        df2 = df2.sort_values(by='Número').drop(columns='Número')
+        #print("Print_tabela chamada")
+        return df2
+
+    
+    def atualizar_estoque(self, df, estoque, Id=None):
+        dic_estoque = df.to_dict()
+        Cartela_dataframe = dic_estoque["Cartela"]
+        Quantidade_dataframe = dic_estoque["Quantidade"]
+        dic_estoque = {cartela: int(quantidade) for cartela, quantidade in zip(Cartela_dataframe.values(), Quantidade_dataframe.values())}
+        
+        if Id:
+            pedido = AWS().buscar_pedido_ID(Id)
+            for cartela, quantidade in pedido["Pedidos"].items():
+                dic_estoque[cartela] = dic_estoque.get(cartela, 0) - quantidade
+
+        AWS().Adicionar_estoque_cartela(estoque, dic_estoque)
+        self.tabela_estoque_formatada.clear()
+        st.success("Estoque atualizado")
+        time.sleep(2)
+        st.rerun()
+        
     
     def Estoque(self):
-        df = self.estoque_cartela
-        df2 = self.estoque_parafusos
+        tab1, tab2 = st.tabs(["Estoque cartela", "Estoque caixa"])
+        df = self.tabela_estoque_formatada("Parafuso Cartela")
+        df2 = self.tabela_estoque_formatada("Parafuso Caixa")
 
-
-
-        tab1, tab2 = st.tabs(["Estoque cartela","Estoque caixa"])
+        
         with tab1:
-            st.title("Estoque cartela")
-            st.dataframe(df)
+            if st.toggle("Editar Estoque"):
+                dataframe = st.data_editor(df, width=500, height=700)
+                if st.button("Salvar estoque"):
+                    self.atualizar_estoque(dataframe, "Parafuso Cartela")
+            else:
+                Id = st.text_input("Buscar ID")
+                st.title("Estoque cartela")  
+                dataframe = st.dataframe(df, width=500, height=700)
+                if st.button("Salvar estoque"):
+                    self.atualizar_estoque(df, "Parafuso Cartela", Id)
+        
         with tab2:
-            st.title("Estoque parafusos")
-            st.dataframe(df2)
+            if st.toggle("Editar Estoque", key="Estoque2"):
+                dataframe = st.data_editor(df2, width=500, height=700, key="Dataframe2")
+                if st.button("Salvar estoque", key="Botão2"):
+                    self.atualizar_estoque(dataframe, "Parafuso Caixa")
+            else:
+                Id = st.text_input("Buscar ID", key="Id2")
+                st.title("Estoque cartela")  
+                dataframe2 = st.dataframe(df2, width=500, height=700)
+                if st.button("Salvar estoque", key="Botão3"):
+                    self.atualizar_estoque(df2, "Parafuso Caixa", Id)
+        
 
-    
-    def criar_usuario(self):
-        st.write("Criar usuarios")
-        nome =  st.text_input("Nome usuario")
-        login  = st.text_input("Nome do login")
-        senha =  st.text_input("Senha")
-        credencial = st.selectbox("Nivel de acesso", ["1", "2", "3","4"])
-        if st.button("Enviar"):
-            dic = {
-                "Usuario": str(login),
-                "Senha": str(senha),
-                "Nome": str(nome),
-                "Credencial": str(credencial)
-            }
-            AWS().adicionar_usuario(dic)
-            
-            st.success("Usuario cadastrado")
         
     def main(self, lista):
         
@@ -511,6 +667,4 @@ class MultiplasTelas:
             self.Estoque()
         elif pagina_selecionada == "Dashboard":
             self.Dashboard()
-        elif pagina_selecionada == "Criar Usuario":
-            self.criar_usuario()
         
