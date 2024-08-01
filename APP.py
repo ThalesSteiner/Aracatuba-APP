@@ -9,7 +9,6 @@ import boto3
 import requests
 from datetime import datetime
 from Aws_pedidos import AWS
-import re
 import json
 
 class MultiplasTelas:
