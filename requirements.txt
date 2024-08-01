@@ -6,5 +6,3 @@ plotly
 boto3
 requests
 datetime
-streamlit-authenticator
-json
