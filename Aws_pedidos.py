@@ -195,7 +195,19 @@ class AWS:
             print("Pedido adicionado com sucesso.")
         except Exception as e:
             print(f"Erro ao adicionar pedido a tabela de pedidos ID: {e}")
-            
+    
+    
+    def adicionar_pedido_tabela_pedidos_gerais(self, Nome, Id, pedido):
+        self.aws_conexão()
+        try:
+            table = self.dynamodb.Table("Pedidos_Gerais")
+            table.put_item(Item={
+                "Nome": str(Nome),
+                "ID": str(Id),
+                "Pedido": pedido})
+            print("Pedido adicionado com sucesso.")
+        except Exception as e:
+            print(f"Erro ao adicionar pedido a tabela de pedidos ID: {e}")
     
     def Adicionar_estoque_cartela(self, Estoque, Estoque_produto):
         self.aws_conexão()
