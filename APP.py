@@ -48,6 +48,7 @@ class MultiplasTelas:
                 if Detalhe_pedido == "Não":
                     Valor_pendente = 0
                     Status = "Quitado"
+                    AWS().remover_pedido_nao_pago("Aracatuba Parafusos", str(ID_compra))
                 else:
                     Status = "Em debito"
                 dic = {
@@ -64,7 +65,12 @@ class MultiplasTelas:
                 st.success(f"Ordem confirmada, pedido {ID_compra} da empresa {Nome_empresa} no valor de {Valor} enviado")
         with tab2:
             st.title("Consulta de débito")
-            Id = st.text_input("Coloque o ID da consulta")
+            debito = st.toggle("Pesquisar pedidos não pagos")
+            if debito:
+                buscar = self.buscar_pedidos_nao_pagos()
+                Id = st.selectbox("Coloque o ID da consulta", buscar)
+            else:
+                Id = st.text_input("Coloque o ID da consulta")
             if st.button("Pesquisar"):
                 try:
                     pedido = AWS().buscar_pedido_controle_coleta(Id)
@@ -77,10 +83,10 @@ class MultiplasTelas:
                     mygrid.text_input("Valor do pedido",  value=float(pedido["Valor"]))
                     mygrid.text_input("Débito",  value=pedido["Debito"])
                     mygrid.text_input("Valor pendente",  value=pedido["Valor pendente"])
-                    #style_metric_cards(background_color="5c6671")
-                    #st.success("Pedido ")
+
                 except:
                     st.warning("Pedido não achado")
+                    
         with tab3:
             st.title("Consulta de Pedido")
             Id = st.text_input("Coloque o ID da consulta", key="Id2")
@@ -88,29 +94,20 @@ class MultiplasTelas:
 
             if st.button("Pesquisar", key="Botão2"):
                 pedido = AWS().buscar_pedido_ID(Id)
-                mygrid =  grid(4,3, vertical_align="bottom")
+                mygrid =  grid(4,4, vertical_align="bottom")
                 mygrid.text_input("Loja",  value=pedido["Loja"])
                 mygrid.text_input("ID",  value=int(pedido["ID"]))
                 mygrid.text_input("Data",  value=pedido["Data"])
+                mygrid.text_input("Hora",  value=pedido["Hora"])
                 mygrid.text_input("Tipo de Venda",  value=pedido["Tipo de Venda"])
                 mygrid.text_input("Valor Cartela",  value=pedido["Valor da cartela"])
                 df = pd.DataFrame(list(pedido["Pedidos"].items()), columns=['Tamanho', 'Quantidade'])
                 df['Quantidade'] = pd.to_numeric(df['Quantidade'])
-                #df['Tamanho'] = pd.to_numeric(df['Tamanho'])
-                #lista_tam = df['Tamanho'].tolist()
-                #df['Tamanho'] = [f"Cartela {int(tam)}" for tam in lista_tam]
                 st.title("Tabela do Pedido")
                 st.dataframe(df, width=400, height=600)
                 mygrid.text_input("Quantidade de Parafusos",  value=sum(df["Quantidade"].tolist()))
                 mygrid.text_input("Valor total do pedido:",  value=(sum(df["Quantidade"].tolist()) * float(pedido["Valor da cartela"])))
-                #style_metric_cards(background_color="5c6671")
 
-
-    @st.cache_data
-    def buscar_empresa(_self, empresa):
-        print(f"Função chamada {empresa}")
-        return AWS().buscar_cadastro_empresa(empresa)
-    
 
 
     def cadastro_empresa(self):
@@ -118,13 +115,15 @@ class MultiplasTelas:
         with tab1:
             st.title("Cadastro de Empresas")
             st.write("Dados Gerais",)
-            my_grid = grid(3, 2, [2,1,1], [2,2,1,1], vertical_align="bottom")
+            my_grid = grid(3, 4, [2,1,1], [2,2,1,1], vertical_align="bottom")
             #row1
             Nome_nova_empresa = my_grid.text_input("Nome / Razão social")
             Nome_representante = my_grid.text_input("Nome do representante")
             Cpf_cnpj = my_grid.text_input("CPF / CNPJ")
             #row2
-            Telefone_contato = my_grid.text_input("Número para contato")
+            Telefone_contato = my_grid.text_input("Número de celular")
+            Telefone_contato2 = my_grid.text_input("Número Fixo")
+            Telefone_contato3 = my_grid.text_input("Número de Whatsapp")
             Gmail = my_grid.text_input("Gmail")
             #row3
             Cidade = my_grid.text_input("Cidade")
@@ -150,6 +149,8 @@ class MultiplasTelas:
                         "Data cadastro": Data_cadastro,
                         "CPF/CNPJ": Cpf_cnpj,
                         "Telefone_contato": Telefone_contato,
+                        "Telefone_fixo": Telefone_contato2,
+                        "Telefone_whats": Telefone_contato3,
                         "Email": Gmail, 
                         "Endereco": {
                             "Rua": Rua,
@@ -207,6 +208,7 @@ class MultiplasTelas:
                     Cadastro = self.buscar_empresa(empresa)
                     if Cadastro["Data cadastro"] == "":
                         Cadastro["Data cadastro"] = "Não cadastrado"
+                        
                     mygrid =  grid(3,2,2,2, vertical_align="bottom")
                     mygrid.text_input("Loja",  Cadastro["Nome"])
                     mygrid.text_input("CPF/CNPJ",  Cadastro["CPF/CNPJ"])
@@ -215,7 +217,11 @@ class MultiplasTelas:
                     mygrid.text_input("Telefone contato",  Cadastro["Telefone_contato"])
                     mygrid.text_input("Data cadastro",  Cadastro["Data cadastro"])
                     mygrid.text_input("Email",  Cadastro["Email"])
-                    #style_metric_cards(background_color="5c6671")
+                    try:
+                        mygrid.text_input("Telefone fixo",  Cadastro["Telefone_fixo"])
+                        mygrid.text_input("Complemento",  Cadastro["Telefone_whats"])
+                    except:
+                        st.warning("Nenhum outro telefone para contato encontrado")             
                 except:
                     st.warning("Empresa não encontrada")
             with col2:
@@ -231,6 +237,7 @@ class MultiplasTelas:
                     mygrid.text_input("Complemento",  Cadastro["Endereco"]["Complemento"])
                 except:
                     st.warning("Empresa não encontrada")
+                    
                 try:
                     mygrid.text_input("Endereço no antigo sistema",  Cadastro["Endereco anterior"])
                 except:
@@ -274,6 +281,7 @@ class MultiplasTelas:
                         dic = {"ID": str(Id),
                             "Loja": loja,
                             "Data": str(data),
+                            "Hora": str(self.Data_hora()),
                             "Tipo de Venda": venda,
                             "Valor da cartela": str(valor_cartela),
                             "Pedidos": pedido
@@ -290,14 +298,21 @@ class MultiplasTelas:
                             "Forma pagamento": "Não declarada"}
                         
                         #AWS().adicionar_pedido_tabela_pedidos(loja,dic)
-                        AWS().adicionar_pedido_tabela_pedidos_gerais(loja,Id,dic)
-                        AWS().adicionar_pedido_tabela_pedidosID(dic)
-                        AWS().adicionar_pedido_Controle_Coleta(controle_coleta)
-                        st.success(f"Cadastro da empresa feito com sucesso!")
+                        
+                        #AWS().adicionar_pedido_tabela_pedidos_gerais(loja,Id,dic)
+                        #AWS().adicionar_pedido_tabela_pedidosID(dic)
+                        #AWS().adicionar_pedido_Controle_Coleta(controle_coleta)
+                        #AWS().adicionar_pedido_nao_pago("Aracatuba Parafusos", str(Id))
+                        self.Aviso_pedido(Id, loja)
+                        st.success(f"Cadastro do pedido {Id} da empresa {loja} feito com sucesso!")
                     except:
                         st.warning("ERRO AO CADASTRAR")
 
-    
+    @st.experimental_dialog("Aviso de pedido")
+    def Aviso_pedido(self, id, empresa):
+        st.write(f"O pedido {id}, da empresa {empresa} foi confirmado")
+        if st.button("Confirmar"):
+            st.rerun()
     
     def Separar_pedido(self):
 
@@ -378,7 +393,6 @@ class MultiplasTelas:
             else:
                 pass
             i += 1
-        #st.write(self.Data_hora())
         #st.write(data_frame2)  
 
 
@@ -389,12 +403,12 @@ class MultiplasTelas:
             data_hora_atual = response.json()['datetime']
             data_formatada = data_hora_atual[0:10]
             Hora = data_hora_atual[11:19]
-            st.write(data_formatada, Hora)
-            return f"{data_formatada} {Hora}"
+            #st.write(data_formatada, Hora)
+            return f"{Hora}"
         except:
             hora_sistema = datetime.now()
             hora_sistema_formatada = hora_sistema.strftime('%Y-%m-%d %H:%M:%S')
-            st.write("Data e hora do sistema (formatada):", hora_sistema_formatada)
+            #st.write("Data e hora do sistema (formatada):", hora_sistema_formatada)
             return f"{hora_sistema_formatada}"
 
 
@@ -664,25 +678,30 @@ class MultiplasTelas:
         
         self.lista_abas = lista
         lista_navegação = []
-    
-
-        
-        
         
         for pagina_selecionada in self.lista_abas:
             if pagina_selecionada == "Cadastro de Empresa":
-                lista_navegação.append(st.Page(self.cadastro_empresa, title= "Cadastro de Empresa 🏢"))
+                lista_navegação.append(st.Page(self.cadastro_empresa, title= "🏢 Cadastro de Empresa"))
             elif pagina_selecionada == "Cadastrar novo pedido":
-                lista_navegação.append(st.Page(self.cadastro_novo_pedido, title="Cadastrar novo pedido 📝"))
+                lista_navegação.append(st.Page(self.cadastro_novo_pedido, title="📝 Cadastrar novo pedido"))
             elif pagina_selecionada == "Controle de Coleta":
-                lista_navegação.append(st.Page(self.Controle_coleta, title="Controle de Coleta 📦"))
+                lista_navegação.append(st.Page(self.Controle_coleta, title="📦 Controle de Coleta"))
             elif pagina_selecionada == "Separar pedido":
-                lista_navegação.append(st.Page(self.Separar_pedido, title="Separar pedido 📋"))
+                lista_navegação.append(st.Page(self.Separar_pedido, title="📋 Separar pedido"))
             elif pagina_selecionada == "Estoque":
-                lista_navegação.append(st.Page(self.Estoque, title="Estoque 📊"))
+                lista_navegação.append(st.Page(self.Estoque, title="📊 Estoque"))
             elif pagina_selecionada == "Dashboard":
-                lista_navegação.append(st.Page(self.Dashboard, title="Dashboard 📈"))
+                lista_navegação.append(st.Page(self.Dashboard, title="📈 Dashboard"))
         
         pg = st.navigation({"Aracatuba parafusos":lista_navegação}, position="sidebar")
         pg.run()
 
+    @st.cache_data
+    def buscar_empresa(_self, empresa):
+        print(f"Função chamada {empresa}")
+        return AWS().buscar_cadastro_empresa(empresa)
+    
+    #@st.cache_data
+    def buscar_pedidos_nao_pagos(_self):
+        print("Pedidos não pagos")
+        return [item['S'] for item in AWS().buscar_pedido_nao_pago()]

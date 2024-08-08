@@ -22,6 +22,19 @@ class AWS:
             region_name=region_name
         )
     
+    def aws_conexão_client(self):
+        st.session_state.user_info.get("aws_secret_access_key", "")
+        aws_access_key_id = st.session_state.user_info.get("aws_access_key_id", "")
+        aws_secret_access_key = st.session_state.user_info.get("aws_secret_access_key", "")
+        region_name = 'us-east-1' 
+
+        # Conectar ao DynamoDB usando as credenciais e a região fornecidas
+        self.dynamodb = boto3.client(
+            'dynamodb',
+            aws_access_key_id  = aws_access_key_id,
+            aws_secret_access_key  = aws_secret_access_key,
+            region_name=region_name
+        )
     
     #Busca as lojas para enviar para o APP
     def buscar_clientes(self):
@@ -208,6 +221,7 @@ class AWS:
             print("Pedido adicionado com sucesso.")
         except Exception as e:
             print(f"Erro ao adicionar pedido a tabela de pedidos ID: {e}")
+  
     
     def Adicionar_estoque_cartela(self, Estoque, Estoque_produto):
         self.aws_conexão()
@@ -238,7 +252,75 @@ class AWS:
             print("Pedido adicionado com sucesso.")
         except Exception as e:
             print(f"Erro ao adicionar pedido: {e}")
+    
+    
+    #Adiciona o Id do pedido em uma lista de pedidos não pagos     
+    def adicionar_pedido_nao_pago(self, loja, Id):
+        self.aws_conexão_client()
+        try:
+            response = self.dynamodb.update_item(
+                TableName="Controle_Divida",
+                Key={
+                    'Loja': {'S': loja}
+                },
+                UpdateExpression="SET #pedidos = list_append(if_not_exists(#pedidos, :vazia), :pedido)",
+                ExpressionAttributeNames={
+                    '#pedidos': 'Pedidos_não_pagos'
+                },
+                ExpressionAttributeValues={
+                    ':pedido': {'L': [{'S': Id}]},
+                    ':vazia': {'L': []}  # Valor padrão caso o atributo não exista
+                },
+                ReturnValues="UPDATED_NEW"
+            )
+            return response
+        except Exception as e:
+            print(f"Erro ao Adicionar Id do pedido em Controle divida: {e}")
+     
+    def buscar_pedido_nao_pago(self):
+        self.aws_conexão_client()
+        # Define a chave do item que deseja buscar
+        key = {
+            'Loja': {'S': 'Aracatuba Parafusos'}
+        }
         
+        # Busca o item na tabela
+        response = self.dynamodb.get_item(
+            TableName='Controle_Divida',
+            Key=key
+        )
+        return response['Item']['Pedidos_não_pagos']['L']
+            
+    #Retira o Id do pedido em uma lista de pedidos não pagos 
+    def remover_pedido_nao_pago(self, loja, pedido_id):
+        self.aws_conexão_client()
+        try:
+            pedidos_nao_pagos = self.buscar_pedido_nao_pago()
+            print(f"Pedidos não pagos antes da remoção: {pedidos_nao_pagos}")
+            
+            pedidos_nao_pagos_list = [item['S'] for item in pedidos_nao_pagos]
+            if pedido_id in pedidos_nao_pagos_list:
+                pedidos_nao_pagos_list.remove(pedido_id)
+                
+                # Converte de volta para o formato DynamoDB
+                pedidos_nao_pagos_ddb_format = [{'S': pid} for pid in pedidos_nao_pagos_list]
+                
+                # Atualiza a tabela com a lista modificada
+                self.dynamodb.put_item(
+                    TableName="Controle_Divida",
+                    Item={
+                        'Loja': {'S': loja},
+                        'Pedidos_não_pagos': {'L': pedidos_nao_pagos_ddb_format}
+                    }
+                )
+                print("Pedido removido com sucesso.")
+            else:
+                print("ID do pedido não encontrado")
+                
+        except Exception as e:
+            print(f"Erro ao remover ID do pedido em Controle_Divida: {e}")
+
+    
     
     #Gera um novo ID para o pedido que vai para tabela de pedidos com ID
     def Gerar_novo_id(self):
