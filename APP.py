@@ -12,6 +12,7 @@ from Aws_pedidos import AWS
 import json
 import folium
 from streamlit_folium import st_folium
+from folium.plugins import MarkerCluster
 
 class MultiplasTelas:
     def __init__(self):
@@ -715,6 +716,8 @@ class MultiplasTelas:
         centro_lon = sum(longitudes) / len(longitudes)
         mapa = folium.Map(location=[centro_lat, centro_lon], zoom_start=12)
 
+        marker_cluster = MarkerCluster().add_to(mapa)
+        
         # Adicionar os pontos no mapa com popups
         for lat, lon, loja, statu in zip(latitudes, longitudes, lojas, Status):
             if statu == "Ativo":
@@ -722,14 +725,14 @@ class MultiplasTelas:
                     [lat, lon],
                     popup=folium.Popup(loja, max_width=100),
                     icon=folium.Icon(icon="cloud")
-                ).add_to(mapa)
+                ).add_to(marker_cluster)
             elif statu == "Inativo":
                 folium.Marker(
                     [lat, lon],
                     popup=folium.Popup(loja, max_width=100),
                     icon=folium.Icon(icon="remove", color="red")
-                ).add_to(mapa)
-        folium.Marker([-22.832113794507347, -43.346853465267536], popup="Araçatuba Material", icon=folium.Icon(icon="Home", color="orange")).add_to(mapa)
+                ).add_to(marker_cluster)
+        folium.Marker([-22.832113794507347, -43.346853465267536], popup="Araçatuba Material", icon=folium.Icon(icon="Home", color="orange")).add_to(marker_cluster)
         # Exibir o mapa no Streamlit
         st_folium(mapa, width=1800, height=600)
     
