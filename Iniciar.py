@@ -4,7 +4,7 @@ from Aws_pedidos import AWS
 import json
 
 #layout="wide"
-st.set_page_config(page_title="Aracatuba Parafusos", page_icon="🔨",)
+st.set_page_config(page_title="Aracatuba Parafusos", page_icon="🔨",layout="wide")
 
 class Iniciar:
     def __init__(self):
@@ -86,7 +86,7 @@ class Iniciar:
             elif credencial == "3":
                 Acesso = ["Controle de Coleta", "Cadastro de Empresa", "Cadastrar novo pedido", "Separar pedido", "Estoque"]
             elif credencial == "4":
-                Acesso = ["Controle de Coleta", "Cadastro de Empresa", "Cadastrar novo pedido", "Separar pedido", "Estoque", "Dashboard"]
+                Acesso = ["Controle de Coleta", "Cadastro de Empresa", "Cadastrar novo pedido", "Separar pedido", "Estoque", "Dashboard", "Rotas"]
             else:
                 st.error("Credencial inválida.")
                 return

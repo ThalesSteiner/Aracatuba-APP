@@ -358,4 +358,10 @@ class AWS:
             print(f"Endereço cadastrado com sucesso!")
         except Exception as e:
             print(f"Erro ao cadastrar cliente: {e}")
-    
+            
+    def Buscar_todos_cadastro_clientes(self):
+        self.aws_conexão()
+        table = self.dynamodb.Table('Cadastro_Cliente')
+        response = table.scan()
+        clientes = response['Items']
+        return clientes

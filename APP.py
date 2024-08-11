@@ -10,6 +10,8 @@ import requests
 from datetime import datetime
 from Aws_pedidos import AWS
 import json
+import folium
+from streamlit_folium import st_folium
 
 class MultiplasTelas:
     def __init__(self):
@@ -17,7 +19,6 @@ class MultiplasTelas:
         self.meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
         self.df_pedidos = False
         self.empresas =  ["Nenhuma"] + self.buscar_clientes()
-        self.f = []
 
 
     @st.cache_data
@@ -109,13 +110,12 @@ class MultiplasTelas:
                 mygrid.text_input("Valor total do pedido:",  value=(sum(df["Quantidade"].tolist()) * float(pedido["Valor da cartela"])))
 
 
-
     def cadastro_empresa(self):
         tab1, tab2 ,tab3, tab4= st.tabs(["Empresa", "Expositor", "Rota", "Consultar Empresa"])
         with tab1:
             st.title("Cadastro de Empresas")
             st.write("Dados Gerais",)
-            my_grid = grid(3, 4, [2,1,1], [2,2,1,1], vertical_align="bottom")
+            my_grid = grid(3, 4, [2,1,1], [2,2,1,1],2, vertical_align="bottom")
             #row1
             Nome_nova_empresa = my_grid.text_input("Nome / Razão social")
             Nome_representante = my_grid.text_input("Nome do representante")
@@ -136,6 +136,9 @@ class MultiplasTelas:
             Numero = my_grid.text_input("Numero")
             Complemento = my_grid.text_input("Complemento")
 
+            longitude  = my_grid.text_input("longitude")
+            latitude = my_grid.text_input("latitude")
+            
             #Rota = st.selectbox("Selecione a Rota:", ["Rota 1", "Rota 2", "Rota 3"])
             Data_cadastro = st.date_input("Data do cadastro", format="DD/MM/YYYY")
         
@@ -151,7 +154,9 @@ class MultiplasTelas:
                         "Telefone_contato": Telefone_contato,
                         "Telefone_fixo": Telefone_contato2,
                         "Telefone_whats": Telefone_contato3,
-                        "Email": Gmail, 
+                        "Email": Gmail,
+                        "Longitude": longitude,
+                        "Latitude": latitude,
                         "Endereco": {
                             "Rua": Rua,
                             "Numero": Numero,
@@ -208,7 +213,7 @@ class MultiplasTelas:
                     Cadastro = self.buscar_empresa(empresa)
                     if Cadastro["Data cadastro"] == "":
                         Cadastro["Data cadastro"] = "Não cadastrado"
-                        
+                    st.json(Cadastro)
                     mygrid =  grid(3,2,2,2, vertical_align="bottom")
                     mygrid.text_input("Loja",  Cadastro["Nome"])
                     mygrid.text_input("CPF/CNPJ",  Cadastro["CPF/CNPJ"])
@@ -217,6 +222,8 @@ class MultiplasTelas:
                     mygrid.text_input("Telefone contato",  Cadastro["Telefone_contato"])
                     mygrid.text_input("Data cadastro",  Cadastro["Data cadastro"])
                     mygrid.text_input("Email",  Cadastro["Email"])
+                    mygrid.text_input("Longitude",  Cadastro["Longitude"])
+                    mygrid.text_input("Latitude",  Cadastro["Latitude"])
                     try:
                         mygrid.text_input("Telefone fixo",  Cadastro["Telefone_fixo"])
                         mygrid.text_input("Complemento",  Cadastro["Telefone_whats"])
@@ -299,20 +306,22 @@ class MultiplasTelas:
                         
                         #AWS().adicionar_pedido_tabela_pedidos(loja,dic)
                         
-                        #AWS().adicionar_pedido_tabela_pedidos_gerais(loja,Id,dic)
-                        #AWS().adicionar_pedido_tabela_pedidosID(dic)
-                        #AWS().adicionar_pedido_Controle_Coleta(controle_coleta)
-                        #AWS().adicionar_pedido_nao_pago("Aracatuba Parafusos", str(Id))
+                        AWS().adicionar_pedido_tabela_pedidos_gerais(loja,Id,dic)
+                        AWS().adicionar_pedido_tabela_pedidosID(dic)
+                        AWS().adicionar_pedido_Controle_Coleta(controle_coleta)
+                        AWS().adicionar_pedido_nao_pago("Aracatuba Parafusos", str(Id))
                         self.Aviso_pedido(Id, loja)
                         st.success(f"Cadastro do pedido {Id} da empresa {loja} feito com sucesso!")
                     except:
                         st.warning("ERRO AO CADASTRAR")
+
 
     @st.experimental_dialog("Aviso de pedido")
     def Aviso_pedido(self, id, empresa):
         st.write(f"O pedido {id}, da empresa {empresa} foi confirmado")
         if st.button("Confirmar"):
             st.rerun()
+    
     
     def Separar_pedido(self):
 
@@ -673,7 +682,58 @@ class MultiplasTelas:
                 if st.button("Salvar estoque", key="Botão3"):
                     self.atualizar_estoque(df2, "Parafuso Caixa", Id)
     
+    @st.cache_data
+    def buscar_cadastro_empresas(_self):
+        Cadastro_empresas = AWS().Buscar_todos_cadastro_clientes()
+        print("Função chamada")
+        print(len(Cadastro_empresas))
+        return Cadastro_empresas
+    
+    def Rotas(self):
+        Cadastro_empresas = self.buscar_cadastro_empresas()
         
+        latitudes = []
+        longitudes = []
+        lojas = []
+        Status = []
+        
+        for empresa in Cadastro_empresas:
+            try:
+                longitudes.append(float(empresa["Longitude"]))
+                latitudes.append(float(empresa["Latitude"]))
+                lojas.append(empresa["Nome"])
+                Status.append(empresa["Status"])
+            except:
+                pass
+        
+        if not latitudes or not longitudes:
+            st.write("Nenhuma coordenada válida encontrada.")
+            return
+
+        # Centralizar o mapa na média das coordenadas
+        centro_lat = sum(latitudes) / len(latitudes)
+        centro_lon = sum(longitudes) / len(longitudes)
+        mapa = folium.Map(location=[centro_lat, centro_lon], zoom_start=12)
+
+        # Adicionar os pontos no mapa com popups
+        for lat, lon, loja, statu in zip(latitudes, longitudes, lojas, Status):
+            if statu == "Ativo":
+                folium.Marker(
+                    [lat, lon],
+                    popup=folium.Popup(loja, max_width=100),
+                    icon=folium.Icon(icon="cloud")
+                ).add_to(mapa)
+            elif statu == "Inativo":
+                folium.Marker(
+                    [lat, lon],
+                    popup=folium.Popup(loja, max_width=100),
+                    icon=folium.Icon(icon="remove", color="red")
+                ).add_to(mapa)
+        folium.Marker([-22.832113794507347, -43.346853465267536], popup="Araçatuba Material", icon=folium.Icon(icon="Home", color="orange")).add_to(mapa)
+        # Exibir o mapa no Streamlit
+        st_folium(mapa, width=1800, height=600)
+    
+    
     def main(self, lista):
         
         self.lista_abas = lista
@@ -692,9 +752,12 @@ class MultiplasTelas:
                 lista_navegação.append(st.Page(self.Estoque, title="📊 Estoque"))
             elif pagina_selecionada == "Dashboard":
                 lista_navegação.append(st.Page(self.Dashboard, title="📈 Dashboard"))
+            elif pagina_selecionada == "Rotas":
+                lista_navegação.append(st.Page(self.Rotas, title="🚚 Rotas"))
         
         pg = st.navigation({"Aracatuba parafusos":lista_navegação}, position="sidebar")
         pg.run()
+
 
     @st.cache_data
     def buscar_empresa(_self, empresa):
