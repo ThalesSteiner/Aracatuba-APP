@@ -170,19 +170,19 @@ class AWS:
             print(f"Erro ao cadastrar cliente: {e}")
     
     #Adiciona Pedido no historico do cliente
-    def adicionar_pedido_tabela_pedidos(self, nome_cliente, Pedido):
+    def adicionar_pedido_tabela_pedidos(self, nome_cliente, id):
         self.aws_conexão()
         try:
             table = self.dynamodb.Table('Pedidos')
             # Converta Pedido para string
-            Pedido_str = str(Pedido)
+            Pedido_str = str(id)
             
             # Primeiro, verifica se o cliente já tem pedidos
             response = table.get_item(Key={'Nome': nome_cliente})
             if 'Item' not in response:
                 # Se o cliente não existir, cria um novo item com a lista de pedidos
-                table.put_item(Item={'Nome': nome_cliente, 'Pedidos': [Pedido_str]})
-                print(f"Pedido '{Pedido_str}' adicionado ao novo cliente {nome_cliente}.")
+                table.put_item(Item={'Nome': nome_cliente, 'Pedidos': [id]})
+                print(f"Pedido '{id}' adicionado ao novo cliente {nome_cliente}.")
             else:
                 # Se o cliente já existir, atualiza a lista de pedidos
                 table.update_item(
@@ -199,6 +199,7 @@ class AWS:
             print(f"Erro ao adicionar pedido na tabela de pedidos: {e}")
             return "Falha"
 
+
     #Adiciona Pedido na tabela de Pedidos com id
     def adicionar_pedido_tabela_pedidosID(self, Pedido):
         self.aws_conexão()
@@ -209,18 +210,19 @@ class AWS:
         except Exception as e:
             print(f"Erro ao adicionar pedido a tabela de pedidos ID: {e}")
     
+    #Adiciona pedido na tabela de pedidos gerais que contem as datas
     
-    def adicionar_pedido_tabela_pedidos_gerais(self, Nome, Id, pedido):
+    def adicionar_pedido_tabela_pedidos_gerais(self, Data, Id, pedido):
         self.aws_conexão()
         try:
             table = self.dynamodb.Table("Pedidos_Gerais")
             table.put_item(Item={
-                "Nome": str(Nome),
+                "Data": str(Data),
                 "ID": str(Id),
                 "Pedido": pedido})
             print("Pedido adicionado com sucesso.")
         except Exception as e:
-            print(f"Erro ao adicionar pedido a tabela de pedidos ID: {e}")
+            print(f"Erro ao adicionar pedido a tabela de pedidos Gerais: {e}")
   
     
     def Adicionar_estoque_cartela(self, Estoque, Estoque_produto):

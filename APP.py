@@ -22,11 +22,6 @@ class MultiplasTelas:
         self.empresas =  ["Nenhuma"] + self.buscar_clientes()
 
 
-    @st.cache_data
-    def buscar_clientes(_self):
-        return AWS().buscar_clientes()
-
-
     def Controle_coleta(self):
         tab1, tab2, tab3= st.tabs(["Controle", "Consulta débito", "Consulta pedido"])
         
@@ -91,6 +86,8 @@ class MultiplasTelas:
                     
         with tab3:
             st.title("Consulta de Pedido")
+            st.toggle("Consultar Empresa")
+            
             Id = st.text_input("Coloque o ID da consulta", key="Id2")
 
 
@@ -111,8 +108,9 @@ class MultiplasTelas:
                 mygrid.text_input("Valor total do pedido:",  value=(sum(df["Quantidade"].tolist()) * float(pedido["Valor da cartela"])))
 
 
+
     def cadastro_empresa(self):
-        tab1, tab2 ,tab3, tab4= st.tabs(["Empresa", "Expositor", "Rota", "Consultar Empresa"])
+        tab1, tab2 = st.tabs(["Empresa","Consultar Empresa"])
         with tab1:
             st.title("Cadastro de Empresas")
             st.write("Dados Gerais",)
@@ -178,7 +176,7 @@ class MultiplasTelas:
                 except:
                     st.warning(f"Falha ao cadastrar")
                     
-        with tab2:
+            """with tab2:
             st.title("Cadastro de Expositor")
             st.date_input("Data", format="DD/MM/YYYY")
             my_grid = grid(2, 2, vertical_align="bottom")
@@ -202,9 +200,9 @@ class MultiplasTelas:
             my_grid.text_area("Descrição da rota")
 
             if st.button("Cadastar Rota"):
-                st.success(f"Nova rota cadastrada com sucesso!")
+                st.success(f"Nova rota cadastrada com sucesso!")"""
         
-        with tab4:
+        with tab2:
             editar = st.toggle("Editar empresa")
             st.title("Consulta de Empresa")
             empresa = st.selectbox("Nome da empresa", self.empresas, key="empresa2")
@@ -259,6 +257,7 @@ class MultiplasTelas:
                     st.success("Botão clicado")
 
 
+
     def cadastro_novo_pedido(self):
         st.title("Cadastro de novos pedidos")
         lista = []
@@ -307,7 +306,8 @@ class MultiplasTelas:
                         
                         #AWS().adicionar_pedido_tabela_pedidos(loja,dic)
                         
-                        AWS().adicionar_pedido_tabela_pedidos_gerais(loja,Id,dic)
+                        data = f"{self.meses[int(data.month)-1]}-{data.year}"
+                        AWS().adicionar_pedido_tabela_pedidos_gerais(data,Id,dic)
                         AWS().adicionar_pedido_tabela_pedidosID(dic)
                         AWS().adicionar_pedido_Controle_Coleta(controle_coleta)
                         AWS().adicionar_pedido_nao_pago("Aracatuba Parafusos", str(Id))
@@ -316,13 +316,6 @@ class MultiplasTelas:
                     except:
                         st.warning("ERRO AO CADASTRAR")
 
-
-    @st.experimental_dialog("Aviso de pedido")
-    def Aviso_pedido(self, id, empresa):
-        st.write(f"O pedido {id}, da empresa {empresa} foi confirmado")
-        if st.button("Confirmar"):
-            st.rerun()
-    
     
     def Separar_pedido(self):
 
@@ -406,6 +399,7 @@ class MultiplasTelas:
         #st.write(data_frame2)  
 
 
+
     def Data_hora(self):
         try:
             response = requests.get('http://worldtimeapi.org/api/timezone/America/Sao_Paulo')
@@ -420,6 +414,7 @@ class MultiplasTelas:
             hora_sistema_formatada = hora_sistema.strftime('%Y-%m-%d %H:%M:%S')
             #st.write("Data e hora do sistema (formatada):", hora_sistema_formatada)
             return f"{hora_sistema_formatada}"
+
 
 
     def gerar_dado(self):
@@ -447,6 +442,7 @@ class MultiplasTelas:
         soma_linhas = df.iloc[:, 3:].sum(axis=1)
         df.insert(3, "Quantidade", soma_linhas)
         self.df_pedidos = df
+
 
 
     def Dashboard(self):
@@ -611,6 +607,7 @@ class MultiplasTelas:
             st.error("Coloque um periodo")
 
 
+
     def projetar_grafico(self, dataframe, Titulo, x, y, ordenar="Não", suavizar="Sim"):
         fig = px.bar(dataframe, title=Titulo, x=x, y=y, width=500, height=700)
         if suavizar == "Sim":
@@ -621,19 +618,7 @@ class MultiplasTelas:
             fig.update_layout(yaxis=dict(categoryorder='total ascending'))
         return fig
 
-    @st.cache_data
-    def tabela_estoque_formatada(_self, Estoque):
-        estoque_atual = AWS().buscar_Estoque(Estoque)
-        df = pd.DataFrame(estoque_atual)
-        df = df.reset_index()
-        df2 = pd.DataFrame()
-        df2["Cartela"] = df["index"]           
-        df2["Quantidade"] = df["Quantidade"]
-        df2['Número'] = df2["Cartela"].str.extract('(\d+)').astype(int)
-        df2 = df2.sort_values(by='Número').drop(columns='Número')
-        #print("Print_tabela chamada")
-        return df2
-
+    
     
     def atualizar_estoque(self, df, estoque, Id=None):
         dic_estoque = df.to_dict()
@@ -651,6 +636,7 @@ class MultiplasTelas:
         st.success("Estoque atualizado")
         time.sleep(2)
         st.rerun()
+    
         
     
     def Estoque(self):
@@ -683,12 +669,7 @@ class MultiplasTelas:
                 if st.button("Salvar estoque", key="Botão3"):
                     self.atualizar_estoque(df2, "Parafuso Caixa", Id)
     
-    @st.cache_data
-    def buscar_cadastro_empresas(_self):
-        Cadastro_empresas = AWS().Buscar_todos_cadastro_clientes()
-        print("Função chamada")
-        print(len(Cadastro_empresas))
-        return Cadastro_empresas
+   
     
     def Rotas(self):
         Cadastro_empresas = self.buscar_cadastro_empresas()
@@ -697,13 +678,14 @@ class MultiplasTelas:
         longitudes = []
         lojas = []
         Status = []
-        
+        endereços = []
         for empresa in Cadastro_empresas:
             try:
                 longitudes.append(float(empresa["Longitude"]))
                 latitudes.append(float(empresa["Latitude"]))
                 lojas.append(empresa["Nome"])
                 Status.append(empresa["Status"])
+                endereços.append(empresa["Endereco"])
             except:
                 pass
         
@@ -716,25 +698,49 @@ class MultiplasTelas:
         centro_lon = sum(longitudes) / len(longitudes)
         mapa = folium.Map(location=[centro_lat, centro_lon], zoom_start=12)
 
-        marker_cluster = MarkerCluster().add_to(mapa)
         
+        marker_cluster = MarkerCluster().add_to(mapa)
         # Adicionar os pontos no mapa com popups
-        for lat, lon, loja, statu in zip(latitudes, longitudes, lojas, Status):
+        for lat, lon, loja, statu, endereco2 in zip(latitudes, longitudes, lojas, Status, endereços):
+            try:
+                rua = endereco2['Rua']
+                numero = endereco2['Numero']
+                bairro = endereco2['Bairro']
+                cidade = endereco2['Cidade']
+                cep = endereco2['Cep']
+
+                endereco = f"{rua} {numero} {bairro} {cidade} {cep}"
+            except:
+                endereco = endereco2
+
             if statu == "Ativo":
                 folium.Marker(
                     [lat, lon],
-                    popup=folium.Popup(loja, max_width=100),
+                    popup=folium.Popup(f"{loja} / {endereco}", max_width=300),
                     icon=folium.Icon(icon="cloud")
-                ).add_to(marker_cluster)
+                ).add_to(mapa)
             elif statu == "Inativo":
                 folium.Marker(
                     [lat, lon],
-                    popup=folium.Popup(loja, max_width=100),
+                    popup=folium.Popup(f"{loja}\n{endereco}", max_width=300),
                     icon=folium.Icon(icon="remove", color="red")
-                ).add_to(marker_cluster)
-        folium.Marker([-22.832113794507347, -43.346853465267536], popup="Araçatuba Material", icon=folium.Icon(icon="Home", color="orange")).add_to(marker_cluster)
-        # Exibir o mapa no Streamlit
-        st_folium(mapa, width=1800, height=600)
+                ).add_to(mapa)
+            else:
+                folium.Marker(
+                    [lat, lon],
+                    popup=folium.Popup(f"{statu} {loja} {endereco}", max_width=300),
+                    icon=folium.Icon(icon="remove", color="purple")
+                ).add_to(mapa)
+
+        # Adicionar um marcador fixo
+        folium.Marker(
+            [-22.832113794507347, -43.346853465267536], 
+            popup="Araçatuba Material", 
+            icon=folium.Icon(icon="home", color="orange")
+        ).add_to(mapa)
+
+        st_folium(mapa, width=1800, height=800)
+    
     
     
     def main(self, lista):
@@ -762,6 +768,12 @@ class MultiplasTelas:
         pg.run()
 
 
+    @st.experimental_dialog("Aviso de pedido")
+    def Aviso_pedido(self, id, empresa):
+        st.write(f"O pedido ID:{id} da empresa {empresa} foi confirmado")
+        if st.button("Confirmar"):
+            st.rerun()
+
     @st.cache_data
     def buscar_empresa(_self, empresa):
         print(f"Função chamada {empresa}")
@@ -771,3 +783,27 @@ class MultiplasTelas:
     def buscar_pedidos_nao_pagos(_self):
         print("Pedidos não pagos")
         return [item['S'] for item in AWS().buscar_pedido_nao_pago()]
+
+    @st.cache_data
+    def buscar_cadastro_empresas(_self):
+        Cadastro_empresas = AWS().Buscar_todos_cadastro_clientes()
+        print("Função chamada")
+        print(len(Cadastro_empresas))
+        return Cadastro_empresas
+    
+    @st.cache_data
+    def tabela_estoque_formatada(_self, Estoque):
+        estoque_atual = AWS().buscar_Estoque(Estoque)
+        df = pd.DataFrame(estoque_atual)
+        df = df.reset_index()
+        df2 = pd.DataFrame()
+        df2["Cartela"] = df["index"]           
+        df2["Quantidade"] = df["Quantidade"]
+        df2['Número'] = df2["Cartela"].str.extract('(\d+)').astype(int)
+        df2 = df2.sort_values(by='Número').drop(columns='Número')
+        #print("Print_tabela chamada")
+        return df2
+    
+    @st.cache_data
+    def buscar_clientes(_self):
+        return AWS().buscar_clientes()
