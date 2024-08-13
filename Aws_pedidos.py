@@ -245,7 +245,7 @@ class AWS:
             print(f"Erro ao adicionar pedido: {e}")
 
 
-
+    #Adiciona o pedido no controle de coleta para que possa ser pesquisado futuramente
     def adicionar_pedido_Controle_Coleta(self, Pedido):
         self.aws_conexão()
         try:
@@ -367,3 +367,13 @@ class AWS:
         response = table.scan()
         clientes = response['Items']
         return clientes
+    
+    
+    def buscar_id_pedidos_lojas(self, Loja):
+        self.aws_conexão_client()
+        # Busca o item na tabela
+        response = self.dynamodb.get_item(
+            TableName='Pedidos',
+            Key={"Nome": {"S": Loja}}
+        )
+        return response["Item"]["Pedidos"]

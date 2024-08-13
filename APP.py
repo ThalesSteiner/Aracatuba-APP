@@ -13,6 +13,7 @@ import json
 import folium
 from streamlit_folium import st_folium
 from folium.plugins import MarkerCluster
+from Funções_APP import Funções
 
 class MultiplasTelas:
     def __init__(self):
@@ -62,10 +63,11 @@ class MultiplasTelas:
                 st.success(f"Ordem confirmada, pedido {ID_compra} da empresa {Nome_empresa} no valor de {Valor} enviado")
         with tab2:
             st.title("Consulta de débito")
-            debito = st.toggle("Pesquisar pedidos não pagos")
+            debito = st.checkbox("Pesquisar pedidos não pagos")
             if debito:
                 buscar = self.buscar_pedidos_nao_pagos()
                 Id = st.selectbox("Coloque o ID da consulta", buscar)
+                
             else:
                 Id = st.text_input("Coloque o ID da consulta")
             if st.button("Pesquisar"):
@@ -83,30 +85,28 @@ class MultiplasTelas:
 
                 except:
                     st.warning("Pedido não achado")
+            
                     
         with tab3:
             st.title("Consulta de Pedido")
-            st.toggle("Consultar Empresa")
-            
-            Id = st.text_input("Coloque o ID da consulta", key="Id2")
 
-
-            if st.button("Pesquisar", key="Botão2"):
-                pedido = AWS().buscar_pedido_ID(Id)
-                mygrid =  grid(4,4, vertical_align="bottom")
-                mygrid.text_input("Loja",  value=pedido["Loja"])
-                mygrid.text_input("ID",  value=int(pedido["ID"]))
-                mygrid.text_input("Data",  value=pedido["Data"])
-                mygrid.text_input("Hora",  value=pedido["Hora"])
-                mygrid.text_input("Tipo de Venda",  value=pedido["Tipo de Venda"])
-                mygrid.text_input("Valor Cartela",  value=pedido["Valor da cartela"])
-                df = pd.DataFrame(list(pedido["Pedidos"].items()), columns=['Tamanho', 'Quantidade'])
-                df['Quantidade'] = pd.to_numeric(df['Quantidade'])
-                st.title("Tabela do Pedido")
-                st.dataframe(df, width=400, height=600)
-                mygrid.text_input("Quantidade de Parafusos",  value=sum(df["Quantidade"].tolist()))
-                mygrid.text_input("Valor total do pedido:",  value=(sum(df["Quantidade"].tolist()) * float(pedido["Valor da cartela"])))
-
+            if st.checkbox("Consultar Empresa"):
+                empresa = st.selectbox("Selecione a empresa", self.empresas, key="empresa_selectbox")   
+                if empresa != "Nenhuma":             
+                    pedido = self.buscar_id_pedidos_lojas(empresa)
+                    st.session_state.pedidos_empresa = pedido
+                    try:
+                        if "pedidos_empresa" in st.session_state:
+                            Id = st.selectbox("Selecione o ID", st.session_state.pedidos_empresa, key="id_selectbox")
+                            if st.button("Buscar Pedido por Empresa"):
+                                Funções().Exibir_pedido(AWS().buscar_pedido_ID(Id))
+                    except:
+                        st.warning("Erro ao buscar ID")
+            else:
+                Id = st.text_input("Coloque o ID da consulta", key="Id2")
+                if st.button("Pesquisar", key="Botão2"):
+                    pedido = AWS().buscar_pedido_ID(Id)
+                    Funções().Exibir_pedido(pedido)
 
 
     def cadastro_empresa(self):
@@ -203,7 +203,7 @@ class MultiplasTelas:
                 st.success(f"Nova rota cadastrada com sucesso!")"""
         
         with tab2:
-            editar = st.toggle("Editar empresa")
+            editar = st.checkbox("Editar empresa")
             st.title("Consulta de Empresa")
             empresa = st.selectbox("Nome da empresa", self.empresas, key="empresa2")
             col1, col2 = st.tabs(["Dados gerais", "Endereço"])
@@ -212,7 +212,6 @@ class MultiplasTelas:
                     Cadastro = self.buscar_empresa(empresa)
                     if Cadastro["Data cadastro"] == "":
                         Cadastro["Data cadastro"] = "Não cadastrado"
-                    st.json(Cadastro)
                     mygrid =  grid(3,2,2,2, vertical_align="bottom")
                     mygrid.text_input("Loja",  Cadastro["Nome"])
                     mygrid.text_input("CPF/CNPJ",  Cadastro["CPF/CNPJ"])
@@ -304,9 +303,8 @@ class MultiplasTelas:
                             "Valor pendente": str(float(quantidade_parafusos) * float(valor_cartela)),
                             "Forma pagamento": "Não declarada"}
                         
-                        #AWS().adicionar_pedido_tabela_pedidos(loja,dic)
-                        
                         data = f"{self.meses[int(data.month)-1]}-{data.year}"
+                        AWS().adicionar_pedido_tabela_pedidos(loja,Id)
                         AWS().adicionar_pedido_tabela_pedidos_gerais(data,Id,dic)
                         AWS().adicionar_pedido_tabela_pedidosID(dic)
                         AWS().adicionar_pedido_Controle_Coleta(controle_coleta)
@@ -646,7 +644,7 @@ class MultiplasTelas:
 
         
         with tab1:
-            if st.toggle("Editar Estoque"):
+            if st.checkbox("Editar Estoque"):
                 dataframe = st.data_editor(df, width=500, height=700)
                 if st.button("Salvar estoque"):
                     self.atualizar_estoque(dataframe, "Parafuso Cartela")
@@ -658,7 +656,7 @@ class MultiplasTelas:
                     self.atualizar_estoque(df, "Parafuso Cartela", Id)
         
         with tab2:
-            if st.toggle("Editar Estoque", key="Estoque2"):
+            if st.checkbox("Editar Estoque", key="Estoque2"):
                 dataframe = st.data_editor(df2, width=500, height=700, key="Dataframe2")
                 if st.button("Salvar estoque", key="Botão2"):
                     self.atualizar_estoque(dataframe, "Parafuso Caixa")
@@ -673,12 +671,15 @@ class MultiplasTelas:
     
     def Rotas(self):
         Cadastro_empresas = self.buscar_cadastro_empresas()
-        
+
         latitudes = []
         longitudes = []
         lojas = []
         Status = []
         endereços = []
+        bairros = []
+        cidades = []
+
         for empresa in Cadastro_empresas:
             try:
                 longitudes.append(float(empresa["Longitude"]))
@@ -686,22 +687,46 @@ class MultiplasTelas:
                 lojas.append(empresa["Nome"])
                 Status.append(empresa["Status"])
                 endereços.append(empresa["Endereco"])
+                bairros.append(empresa["Endereco"]["Bairro"])
+                cidades.append(empresa["Endereco"]["Cidade"])
             except:
                 pass
-        
+
         if not latitudes or not longitudes:
             st.write("Nenhuma coordenada válida encontrada.")
             return
 
-        # Centralizar o mapa na média das coordenadas
-        centro_lat = sum(latitudes) / len(latitudes)
-        centro_lon = sum(longitudes) / len(longitudes)
-        mapa = folium.Map(location=[centro_lat, centro_lon], zoom_start=12)
-
+        lojas.insert(-1, "Todas")
+        bairros.insert(-1, "Todos")
+        cidades.insert(-1, "Todas")
         
+        
+        mygrid =  grid(2, 2, vertical_align="bottom")
+        # Adicionar filtros
+        status_selecionados = mygrid.multiselect("Selecione o status das lojas", options=set(Status), default=["Ativo"])
+        lojas_selecionadas = mygrid.multiselect("Selecione as lojas", options=set(lojas), default=["Todas"])
+        bairros_selecionados = mygrid.multiselect("Selecione os bairros", options=set(bairros), default=["Todos"])
+        cidades_selecionadas = mygrid.multiselect("Selecione as cidades", options=set(cidades), default=["Todas"])
+
+
+        # Filtrar dados com base nas seleções
+        filtro = [
+            (lat, lon, loja, statu, endereco2)
+            for lat, lon, loja, statu, endereco2 in zip(latitudes, longitudes, lojas, Status, endereços)
+            if (statu in status_selecionados) and
+            (lojas_selecionadas == ["Todas"] or loja in lojas_selecionadas) and
+            (bairros_selecionados == ["Todos"] or endereco2["Bairro"] in bairros_selecionados) and
+            (cidades_selecionadas == ["Todas"] or endereco2["Cidade"] in cidades_selecionadas)
+        ]
+
+        if not filtro:
+            st.write("Nenhuma loja encontrada com os filtros selecionados.")
+            return
+
+        mapa = folium.Map(location=[-22.832113794507347, -43.346853465267536], zoom_start=13)
         marker_cluster = MarkerCluster().add_to(mapa)
-        # Adicionar os pontos no mapa com popups
-        for lat, lon, loja, statu, endereco2 in zip(latitudes, longitudes, lojas, Status, endereços):
+
+        for lat, lon, loja, statu, endereco2 in filtro:
             try:
                 rua = endereco2['Rua']
                 numero = endereco2['Numero']
@@ -732,15 +757,13 @@ class MultiplasTelas:
                     icon=folium.Icon(icon="remove", color="purple")
                 ).add_to(mapa)
 
-        # Adicionar um marcador fixo
         folium.Marker(
-            [-22.832113794507347, -43.346853465267536], 
-            popup="Araçatuba Material", 
+            [-22.832113794507347, -43.346853465267536],
+            popup="Araçatuba Material",
             icon=folium.Icon(icon="home", color="orange")
         ).add_to(mapa)
 
         st_folium(mapa, width=1800, height=800)
-    
     
     
     def main(self, lista):
@@ -779,7 +802,7 @@ class MultiplasTelas:
         print(f"Função chamada {empresa}")
         return AWS().buscar_cadastro_empresa(empresa)
     
-    #@st.cache_data
+    @st.cache_data
     def buscar_pedidos_nao_pagos(_self):
         print("Pedidos não pagos")
         return [item['S'] for item in AWS().buscar_pedido_nao_pago()]
@@ -807,3 +830,7 @@ class MultiplasTelas:
     @st.cache_data
     def buscar_clientes(_self):
         return AWS().buscar_clientes()
+    
+    @st.cache_data
+    def buscar_id_pedidos_lojas(_self, empresa):
+        return [pedido["S"] for pedido in AWS().buscar_id_pedidos_lojas(empresa)["L"]]
