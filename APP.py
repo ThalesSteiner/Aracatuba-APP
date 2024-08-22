@@ -14,6 +14,10 @@ import folium
 from streamlit_folium import st_folium
 from folium.plugins import MarkerCluster
 from Funções_APP import Funções
+import plotly.express as px
+import pandas as pd
+
+
 
 class MultiplasTelas:
     def __init__(self):
@@ -207,51 +211,79 @@ class MultiplasTelas:
             st.title("Consulta de Empresa")
             empresa = st.selectbox("Nome da empresa", self.empresas, key="empresa2")
             col1, col2 = st.tabs(["Dados gerais", "Endereço"])
+
             with col1:
                 try:
                     Cadastro = self.buscar_empresa(empresa)
                     if Cadastro["Data cadastro"] == "":
                         Cadastro["Data cadastro"] = "Não cadastrado"
-                    mygrid =  grid(3,2,2,2, vertical_align="bottom")
-                    mygrid.text_input("Loja",  Cadastro["Nome"])
-                    mygrid.text_input("CPF/CNPJ",  Cadastro["CPF/CNPJ"])
-                    mygrid.text_input("Status",  Cadastro["Status"])
-                    mygrid.text_input("Representante",  Cadastro["Representante"])
-                    mygrid.text_input("Telefone contato",  Cadastro["Telefone_contato"])
-                    mygrid.text_input("Data cadastro",  Cadastro["Data cadastro"])
-                    mygrid.text_input("Email",  Cadastro["Email"])
-                    mygrid.text_input("Longitude",  Cadastro["Longitude"])
-                    mygrid.text_input("Latitude",  Cadastro["Latitude"])
+                    mygrid = grid(3, 2, 2, 2, vertical_align="bottom")
+                    
+                    Nome_nova_empresa = mygrid.text_input("Loja", Cadastro["Nome"])
+                    Cpf_cnpj = mygrid.text_input("CPF/CNPJ", Cadastro["CPF/CNPJ"])
+                    if editar:
+                        Ativo = mygrid.selectbox("Status", ["Ativo", "Inativo"])
+                    else:
+                        Ativo = mygrid.text_input("Status", Cadastro["Status"])
+                    Nome_representante = mygrid.text_input("Representante", Cadastro["Representante"])
+                    Telefone_contato = mygrid.text_input("Telefone contato", Cadastro["Telefone_contato"])
+                    Data_cadastro = mygrid.text_input("Data cadastro", Cadastro["Data cadastro"])
+                    Gmail = mygrid.text_input("Email", Cadastro["Email"])
+                    longitude = mygrid.text_input("Longitude", Cadastro["Longitude"])
+                    latitude = mygrid.text_input("Latitude", Cadastro["Latitude"])
+                    
                     try:
-                        mygrid.text_input("Telefone fixo",  Cadastro["Telefone_fixo"])
-                        mygrid.text_input("Complemento",  Cadastro["Telefone_whats"])
+                        Telefone_contato2 = mygrid.text_input("Telefone fixo", Cadastro["Telefone_fixo"])
+                        Telefone_contato3 = mygrid.text_input("Complemento", Cadastro["Telefone_whats"])
                     except:
-                        st.warning("Nenhum outro telefone para contato encontrado")             
+                        st.warning("Nenhum outro telefone para contato encontrado")
+                        
                 except:
                     st.warning("Empresa não encontrada")
+            
             with col2:
                 try:
-                    #st.json(Cadastro)
-                    mygrid =  grid(3,2,2,1, vertical_align="bottom")
-                    mygrid.text_input("Rua",  Cadastro["Endereco"]["Rua"])
-                    mygrid.text_input("Numero",  Cadastro["Endereco"]["Numero"])
-                    mygrid.text_input("Bairro",  Cadastro["Endereco"]["Bairro"])
-                    mygrid.text_input("Cidade",  Cadastro["Endereco"]["Cidade"])
-                    mygrid.text_input("Uf",  Cadastro["Endereco"]["Uf"])
-                    mygrid.text_input("Cep",  Cadastro["Endereco"]["Cep"])
-                    mygrid.text_input("Complemento",  Cadastro["Endereco"]["Complemento"])
+                    mygrid = grid(3, 2, 2, 1, vertical_align="bottom")
+                    Rua = mygrid.text_input("Rua", Cadastro["Endereco"]["Rua"])
+                    Numero = mygrid.text_input("Numero", Cadastro["Endereco"]["Numero"])
+                    Bairro = mygrid.text_input("Bairro", Cadastro["Endereco"]["Bairro"])
+                    Cidade = mygrid.text_input("Cidade", Cadastro["Endereco"]["Cidade"])
+                    Uf = mygrid.text_input("Uf", Cadastro["Endereco"]["Uf"])
+                    Cep = mygrid.text_input("Cep", Cadastro["Endereco"]["Cep"])
+                    Complemento = mygrid.text_input("Complemento", Cadastro["Endereco"]["Complemento"])
                 except:
                     st.warning("Empresa não encontrada")
                     
                 try:
-                    mygrid.text_input("Endereço no antigo sistema",  Cadastro["Endereco anterior"])
+                    Endereco_anterior = mygrid.text_input("Endereço no antigo sistema", Cadastro["Endereco anterior"])
                 except:
                     st.info("Nenhum endereço do antigo sistema foi achado")
-                #st.json(Cadastro, expanded=False)
-                
+
             if st.button("Salvar", key="Botão3"):
                 if editar:
-                    pass
+                    dic = {
+                        "Nome": Nome_nova_empresa,
+                        "Representante": Nome_representante,
+                        "Status": Ativo,
+                        "Data cadastro": Data_cadastro,
+                        "CPF/CNPJ": Cpf_cnpj,
+                        "Telefone_contato": Telefone_contato,
+                        "Telefone_fixo": Telefone_contato2,
+                        "Telefone_whats": Telefone_contato3,
+                        "Email": Gmail,
+                        "Longitude": longitude,
+                        "Latitude": latitude,
+                        "Endereco": {
+                            "Rua": Rua,
+                            "Numero": Numero,
+                            "Bairro": Bairro,
+                            "Cidade": Cidade,
+                            "Uf": Uf,
+                            "Cep": Cep,
+                            "Complemento": Complemento
+                        }
+                    }
+                    AWS().cadastro_cliente_endereço(dic)
                 else:
                     st.success("Botão clicado")
 
@@ -414,36 +446,158 @@ class MultiplasTelas:
             return f"{hora_sistema_formatada}"
 
 
+    @st.cache_data
+    def gerar_dado(_self, empresas):
+        pedidos = []
 
-    def gerar_dado(self):
-        dados = {'Ano': [], 'Mês': [], 'Loja': []}
-        lojas = self.empresas
-        mês = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"]
-        anos = list(range(2011, 2024))
+        anos = [f"{2017+i}" for i in range(8)]
+        meses_do_ano = [
+            "Janeiro", "Fevereiro", "Março", "Abril",
+            "Maio", "Junho", "Julho", "Agosto",
+            "Setembro", "Outubro", "Novembro", "Dezembro"
+        ]
+        lojas = empresas
 
-        # Preenchendo o dicionário com os valores aleatórios
         for ano in anos:
-            for mes in mês:
-                for loja in lojas:
-                    dados['Ano'].append(ano)
-                    dados['Mês'].append(mes)
-                    dados['Loja'].append(loja)
+            for mes in meses_do_ano:
+                for loja in lojas[1:]:
+                    repeticao = np.random.randint(25, 80)
+                    dic = {"Loja": loja,
+                            "Data": f"{mes}-{ano}"}
+                    dic2 = {}
+                    for z in range(1, repeticao):
+                        parafuso = str(np.random.randint(1, 129))
+                        quantidade = str(np.random.randint(1, 16))
+                        dic2[parafuso] = quantidade
+                    dic["Cartela"] = dic2
+                    pedidos.append(dic)
 
-        df = pd.DataFrame(dados)
-        lista_cartela = []
-        for x in range(128):
-            lista_cartela.append(f"C{x+1}")
-
-        for i in range(len(lista_cartela)):
-            lista_cartela_nova = np.random.randint(0,8,len(df))
-            df[lista_cartela[i]] = lista_cartela_nova
-        soma_linhas = df.iloc[:, 3:].sum(axis=1)
-        df.insert(3, "Quantidade", soma_linhas)
-        self.df_pedidos = df
-
+        return pedidos
 
 
     def Dashboard(self):
+        pedidos = self.gerar_dado(self.empresas)
+        #st.json(pedidos)
+        st.title("Pedidos")
+        tabela_completa = st.toggle('Tabela Completa')
+        my_grid = grid(2,3, vertical_align="bottom")
+        Cidade = my_grid.multiselect("Escolha a Bairro", ["todos", "Rio de janeiro", "São joão de meriti", "Nova Iguaçu"])
+        Bairro = my_grid.multiselect("Escolha a Bairro", ["todos", "Piedade", "Meier", "Madureira"])
+        #Bairro = my_grid.multiselect("Escolha a Bairro", ["todos", "Rota1", "Rota2", "Rota3"])
+        
+        loja = my_grid.multiselect("Escolha as Lojas", ["Todos"] + self.empresas)
+        mês = my_grid.multiselect("Escolha o Mês", ["Todos"] + self.meses)
+        ano = my_grid.multiselect("Escolha o Ano", ["Todos"] + [f"{2017+i}" for i in range(8)])
+
+        
+        if st.button("Pesquisar"):
+            
+            if "Todos" not in loja:
+                pedidos = [pedido for pedido in pedidos if pedido['Loja'] in loja]
+            if "Todos" not in mês:
+                pedidos = [pedido for pedido in pedidos if pedido['Data'].split("-")[0] in mês]
+            if "Todos" not in ano:
+                pedidos = [pedido for pedido in pedidos if pedido['Data'].split("-")[1] in ano]
+                
+            # Inicializa os dicionários
+            itens = self.tamanho_max_cartela
+            dic = {str(i): 0 for i in range(1, itens + 1)}
+            datas_unicas = {}
+            Anos_unicas = {}
+            Mês_unicas = {}
+            Lista_lojas = {}
+            Venda_total_parafusos = {}
+
+            # Itera sobre os pedidos
+            for pedido in pedidos:
+                # Atualiza contagem de parafusos
+                for cartela, quantidade in pedido["Cartela"].items():
+                    dic[cartela] += int(quantidade)
+                    if cartela in Venda_total_parafusos:
+                        Venda_total_parafusos[cartela] += int(quantidade)
+                    else:
+                        Venda_total_parafusos[cartela] = int(quantidade)
+                
+                # Calcula a soma das cartelas
+                cartelas = [int(cartela) for cartela in pedido['Cartela']]
+                soma_cartelas = sum(cartelas)
+                
+                # Atualiza a soma para a data correspondente
+                data = pedido["Data"]
+                if data in datas_unicas:
+                    datas_unicas[data] += soma_cartelas
+                else:
+                    datas_unicas[data] = soma_cartelas
+
+                # Atualiza a soma para o ano correspondente
+                ano = data.split("-")[1]
+                if ano in Anos_unicas:
+                    Anos_unicas[ano] += soma_cartelas
+                else:
+                    Anos_unicas[ano] = soma_cartelas
+
+                # Atualiza a soma para o mês correspondente
+                mes = data.split("-")[0]
+                if mes in Mês_unicas:
+                    Mês_unicas[mes] += soma_cartelas
+                else:
+                    Mês_unicas[mes] = soma_cartelas
+                
+                # Atualiza a soma para a loja correspondente
+                loja = pedido["Loja"]
+                if loja in Lista_lojas:
+                    Lista_lojas[loja] += soma_cartelas
+                else:
+                    Lista_lojas[loja] = soma_cartelas
+
+            # Calcula a média de cada parafuso
+            total_pedidos = len(pedidos)
+            Media_cartela = {cartela: round(quantidade / total_pedidos, 2) for cartela, quantidade in dic.items()}
+            
+            # Converter dados para DataFrame
+            df_cartelas = pd.DataFrame(list(dic.items()), columns=['Cartela', 'Total'])
+            df_datas = pd.DataFrame(list(datas_unicas.items()), columns=['Data', 'Total'])
+            df_anos = pd.DataFrame(list(Anos_unicas.items()), columns=['Ano', 'Total'])
+            df_meses = pd.DataFrame(list(Mês_unicas.items()), columns=['Mês', 'Total'])
+            df_lojas = pd.DataFrame(list(Lista_lojas.items()), columns=['Loja', 'Total'])
+
+            # Criar gráficos
+            fig_cartelas = px.bar(df_cartelas, x='Cartela', y='Total', title='Total de Parafusos por Cartela')
+            fig_datas = px.line(df_datas, x='Data', y='Total', title='Total de Cartelas por Data')
+            fig_anos = px.bar(df_anos, x='Ano', y='Total', title='Total de Cartelas por Ano')
+            fig_meses = px.bar(df_meses, x='Mês', y='Total', title='Total de Cartelas por Mês')
+            fig_lojas = px.bar(df_lojas, x='Loja', y='Total', title='Total de Cartelas por Loja')
+
+            
+            my_grid = grid(4, vertical_align="bottom")
+            
+            # Mostrar gráficos no Streamlit
+            st.title('Análise de Pedidos Simulados')
+
+            st.subheader('Total de Parafusos por Cartela')
+            st.plotly_chart(fig_cartelas)
+
+            st.subheader('Total de Cartelas por Data')
+            st.plotly_chart(fig_datas)
+
+            st.subheader('Total de Cartelas por Ano')
+            st.plotly_chart(fig_anos)
+
+            st.subheader('Total de Cartelas por Mês')
+            st.plotly_chart(fig_meses)
+
+            st.subheader('Total de Cartelas por Loja')
+            st.plotly_chart(fig_lojas)
+            
+            
+            st.dataframe(df_cartelas)
+            st.dataframe(df_datas)
+            st.dataframe(df_anos)
+            st.dataframe(df_meses)
+            st.dataframe(df_lojas)
+        
+
+    """def Dashboard2(self):
         if self.df_pedidos == False:
             self.gerar_dado()
         
@@ -604,8 +758,6 @@ class MultiplasTelas:
         except:
             st.error("Coloque um periodo")
 
-
-
     def projetar_grafico(self, dataframe, Titulo, x, y, ordenar="Não", suavizar="Sim"):
         fig = px.bar(dataframe, title=Titulo, x=x, y=y, width=500, height=700)
         if suavizar == "Sim":
@@ -615,7 +767,7 @@ class MultiplasTelas:
         if ordenar == "Sim":
             fig.update_layout(yaxis=dict(categoryorder='total ascending'))
         return fig
-
+"""
     
     
     def atualizar_estoque(self, df, estoque, Id=None):
