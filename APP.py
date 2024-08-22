@@ -227,7 +227,7 @@ class MultiplasTelas:
                         Ativo = mygrid.text_input("Status", Cadastro["Status"])
                     Nome_representante = mygrid.text_input("Representante", Cadastro["Representante"])
                     Telefone_contato = mygrid.text_input("Telefone contato", Cadastro["Telefone_contato"])
-                    Data_cadastro = mygrid.text_input("Data cadastro", Cadastro["Data cadastro"])
+                    Data_cadastro = mygrid.text_input("Data do cadastro", Cadastro["Data cadastro"])
                     Gmail = mygrid.text_input("Email", Cadastro["Email"])
                     longitude = mygrid.text_input("Longitude", Cadastro["Longitude"])
                     latitude = mygrid.text_input("Latitude", Cadastro["Latitude"])
@@ -259,34 +259,31 @@ class MultiplasTelas:
                 except:
                     st.info("Nenhum endereço do antigo sistema foi achado")
 
-            if st.button("Salvar", key="Botão3"):
-                if editar:
-                    dic = {
-                        "Nome": Nome_nova_empresa,
-                        "Representante": Nome_representante,
-                        "Status": Ativo,
-                        "Data cadastro": Data_cadastro,
-                        "CPF/CNPJ": Cpf_cnpj,
-                        "Telefone_contato": Telefone_contato,
-                        "Telefone_fixo": Telefone_contato2,
-                        "Telefone_whats": Telefone_contato3,
-                        "Email": Gmail,
-                        "Longitude": longitude,
-                        "Latitude": latitude,
-                        "Endereco": {
-                            "Rua": Rua,
-                            "Numero": Numero,
-                            "Bairro": Bairro,
-                            "Cidade": Cidade,
-                            "Uf": Uf,
-                            "Cep": Cep,
-                            "Complemento": Complemento
+            if editar:    
+                if st.button("Salvar", key="Botão3"):
+                        dic = {
+                            "Nome": Nome_nova_empresa,
+                            "Representante": Nome_representante,
+                            "Status": Ativo,
+                            "Data cadastro": Data_cadastro,
+                            "CPF/CNPJ": Cpf_cnpj,
+                            "Telefone_contato": Telefone_contato,
+                            "Telefone_fixo": Telefone_contato2,
+                            "Telefone_whats": Telefone_contato3,
+                            "Email": Gmail,
+                            "Longitude": longitude,
+                            "Latitude": latitude,
+                            "Endereco": {
+                                "Rua": Rua,
+                                "Numero": Numero,
+                                "Bairro": Bairro,
+                                "Cidade": Cidade,
+                                "Uf": Uf,
+                                "Cep": Cep,
+                                "Complemento": Complemento
+                            }
                         }
-                    }
-                    AWS().cadastro_cliente_endereço(dic)
-                else:
-                    st.success("Botão clicado")
-
+                        AWS().cadastro_cliente_endereço(dic)
 
 
     def cadastro_novo_pedido(self):
