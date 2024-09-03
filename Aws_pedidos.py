@@ -212,6 +212,7 @@ class AWS:
     
     #Adiciona pedido na tabela de pedidos gerais que contem as datas
     
+    #Adiciona pedido na tabela de pedido gerais
     def adicionar_pedido_tabela_pedidos_gerais(self, Data, Id, pedido):
         self.aws_conexão()
         try:
@@ -225,6 +226,7 @@ class AWS:
             print(f"Erro ao adicionar pedido a tabela de pedidos Gerais: {e}")
   
     
+    #Atualiza Estoque do parafusos
     def Adicionar_estoque_cartela(self, Estoque, Estoque_produto):
         self.aws_conexão()
         try:
@@ -234,7 +236,8 @@ class AWS:
             print("Pedido adicionado com sucesso.")
         except Exception as e:
             print(f"Erro ao adicionar pedido a tabela de Estoque: {e}")
-    
+ 
+    #Adiciona cliente na tabela de pedidos ID 
     def Adicionar_cliente(self, Pedido):
         self.aws_conexão()
         try:
@@ -278,7 +281,9 @@ class AWS:
             return response
         except Exception as e:
             print(f"Erro ao Adicionar Id do pedido em Controle divida: {e}")
-     
+    
+    
+    #Busca os pedidos não pagos no Controle de divida
     def buscar_pedido_nao_pago(self):
         self.aws_conexão_client()
         # Define a chave do item que deseja buscar

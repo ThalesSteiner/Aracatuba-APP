@@ -16,7 +16,10 @@ from folium.plugins import MarkerCluster
 from Funções_APP import Funções
 import plotly.express as px
 import pandas as pd
-
+from openpyxl import load_workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.utils import get_column_letter
+from openpyxl.utils import range_boundaries
 
 
 class MultiplasTelas:
@@ -112,7 +115,7 @@ class MultiplasTelas:
                     pedido = AWS().buscar_pedido_ID(Id)
                     Funções().Exibir_pedido(pedido)
 
-
+    
     def cadastro_empresa(self):
         tab1, tab2 = st.tabs(["Empresa","Consultar Empresa"])
         with tab1:
@@ -344,61 +347,125 @@ class MultiplasTelas:
                         st.warning("ERRO AO CADASTRAR")
 
     
+
     def Separar_pedido(self):
+        st.title("Separar Pedido")
+        data_nota = st.date_input("Data de recebimento", format="DD/MM/YYYY")
+        Id1 = st.text_input("Id")
+        Id2 = st.text_input("Id", key="2")
+        Id3 = st.text_input("Id", key="3")
 
-        st.title("Cadastro de novos pedidos")
-        uploaded_file = st.file_uploader("Escolha um arquivo")
-        if uploaded_file is not None:
-            try:
-                # Get the file contents as bytes
-                bytes_data = uploaded_file.getvalue()
+        if st.button("Pesquisar"):
+            # Carregar o modelo de referência
+            df = pd.read_excel("Modelo final.xlsx")
 
-                # Determine the file type based on the filename extension
-                filename = uploaded_file.name
-                file_extension = filename.split(".")[-1]
+            lista_id = [Id1, Id2, Id3]
+            df.iloc[1, 1] = lista_id[0]
+            df.iloc[1, 10] = lista_id[1]
+            df.iloc[1, 19] = lista_id[2]
+            lista_index = [[1, 3, 5, 7], [10, 12, 14, 16], [19, 21, 23, 25]]
+            lojas = []
+            preço_p = []
+            quantidade_p = []
 
-                # Convert data to DataFrame based on file type
-                if file_extension == "csv":
-                    df_pedidos = pd.read_csv(bytes_data.decode("utf-8"))
-                elif file_extension == "xlsx":
-                    df_pedidos = pd.read_excel(bytes_data, engine="openpyxl")
+            i = 0
+
+            for id in lista_id:
+                if id != '':
+                    pedido = AWS().buscar_pedido_ID(id)
+                    lojas.append(pedido["Loja"])
+                    preço_p.append(float(pedido["Valor da cartela"]))
+
+                    pedido_dic = dict(pedido["Pedidos"])
+                    lista_cartela = [0 for _ in range(self.tamanho_max_cartela)]
+                    for cartela, quantidade in pedido_dic.items():
+                        lista_cartela[int(cartela.split(" ")[1]) - 1] = int(quantidade)
+
+                    lista_1 = lista_cartela[:34] + [sum(lista_cartela[:34])]
+                    lista_2 = lista_cartela[34:68] + [sum(lista_cartela[34:68])]
+                    lista_3 = lista_cartela[68:102] + [sum(lista_cartela[68:102])]
+                    lista_4 = lista_cartela[102:] + [sum(lista_cartela[102:])]
+
+                    df.iloc[4:39, lista_index[i][0]] = lista_1
+                    df.iloc[4:39, lista_index[i][1]] = lista_2
+                    df.iloc[4:39, lista_index[i][2]] = lista_3
+
+                    df.iloc[4:30, lista_index[i][3]] = lista_4[:-1]
+
+                    # Adiciona a soma na última coluna que é diferente das demais
+                    df.iloc[38, lista_index[i][3]] = lista_4[-1]
+
+                    quantidade_p.append(sum(lista_cartela))
+
+                    i += 1
                 else:
-                    st.error(f"Unsupported file type: {file_extension}")
-                    return
+                    i += 1
 
-            except Exception as e:
-                st.error(f"Error reading file: {e}")
+            df.iloc[2, 1] = lojas[0]
+            df.iloc[2, 10] = lojas[1]
+            df.iloc[2, 19] = lojas[2]
 
-            df_pedidos.fillna(0, inplace=True)
-            Lista_pedido_1 = df_pedidos.iloc[3:37, 0:2].values.tolist() + df_pedidos.iloc[3:37, 2:4].values.tolist() + df_pedidos.iloc[3:37, 4:6].values.tolist() + df_pedidos.iloc[3:29, 6:8].values.tolist()
-            Lista_pedido_2 = df_pedidos.iloc[3:37, 9:11].values.tolist() + df_pedidos.iloc[3:37, 11:13].values.tolist() + df_pedidos.iloc[3:37, 13:15].values.tolist() + df_pedidos.iloc[3:29, 15:17].values.tolist()
-            Lista_pedido_3 = df_pedidos.iloc[3:37, 18:20].values.tolist() + df_pedidos.iloc[3:37, 20:22].values.tolist() + df_pedidos.iloc[3:37, 22:24].values.tolist() + df_pedidos.iloc[3:29, 24:26].values.tolist()
+            df.iloc[42, 0] = preço_p[0]
+            df.iloc[42, 9] = preço_p[1]
+            df.iloc[42, 18] = preço_p[2]
 
-            # Criar DataFrames
-            df_pedido_1 = pd.DataFrame(Lista_pedido_1, columns=['Tamanho', 'Quantidade'])
-            df_pedido_2 = pd.DataFrame(Lista_pedido_2, columns=['Tamanho', 'Quantidade'])
-            df_pedido_3 = pd.DataFrame(Lista_pedido_3, columns=['Tamanho', 'Quantidade'])
+            df.iloc[42, 3] = quantidade_p[0]
+            df.iloc[42, 12] = quantidade_p[1]
+            df.iloc[42, 21] = quantidade_p[2]
 
-            st.title("Tabela de Pedidos")
-            my_grid = grid(3,3, vertical_align="bottom")
-            loja1 = my_grid.selectbox("Escolha a Loja", self.empresas, key="loja1")
-            loja2 = my_grid.selectbox("Escolha a Loja", self.empresas, key="loja2")
-            loja3 = my_grid.selectbox("Escolha a Loja", self.empresas, key="loja3")
-            my_grid.dataframe(df_pedido_1, width=400, height=500)
-            my_grid.dataframe(df_pedido_2, width=400, height=500)
-            my_grid.dataframe(df_pedido_3, width=400, height=500)
-            lojas = [loja1, loja2, loja3]
-            nenhuma_count = sum([loja1 == "Nenhuma", loja2 == "Nenhuma", loja3 == "Nenhuma"])
-            lojas_iguais = len(set(lojas)) < 3
-            if nenhuma_count == 3:
-                st.warning("Nenhuma loja selecionada por favor trocar")
-            else:
-                if st.button("Enviar Pedido"):
-                    self.enviar_pedido(loja1, df_pedido_1, loja2, df_pedido_2, loja3, df_pedido_3)
-                    st.success("Pedido enviado")
+            df.iloc[42, 6] = float(quantidade_p[0]) * float(preço_p[0])
+            df.iloc[42, 15] = float(quantidade_p[1]) * float(preço_p[1])
+            df.iloc[42, 24] = float(quantidade_p[2]) * float(preço_p[2])
 
 
+            output_file = "Modelo_temporario.xlsx"
+            
+            # Salvar o DataFrame modificado em um novo arquivo Excel temporário
+            df.to_excel(output_file, index=False)
 
+            # Carregar a planilha existente com openpyxl
+            workbook = load_workbook('Modelo final.xlsx')
+            sheet = workbook.active
+
+            # Abrir o arquivo Excel salvo temporariamente com o DataFrame modificado
+            df_modified = pd.read_excel(output_file)
+
+            # Aplicar as modificações do DataFrame na planilha carregada
+            for r_idx, row in df_modified.iterrows():
+                for c_idx, value in enumerate(row):
+                    cell = sheet.cell(row=r_idx + 1, column=c_idx + 1)
+
+                    # Verifica se a célula faz parte de uma região mesclada
+                    if cell.coordinate in sheet.merged_cells:
+                        # Obtém a faixa mesclada (ex: A1:B2)
+                        for merged_range in sheet.merged_cells.ranges:
+                            min_col, min_row, max_col, max_row = range_boundaries(str(merged_range))
+                            if min_row == r_idx + 1 and min_col == c_idx + 1:
+                                # Somente a célula superior esquerda deve ser modificada
+                                cell.value = value
+                                break
+                    else:
+                        # Caso a célula não faça parte de uma região mesclada
+                        cell.value = value
+
+            # Salvar o workbook com as modificações
+            workbook.save('Entrega_Final.xlsx')
+            
+            # Fechar o workbook
+            workbook.close()
+            
+            with open("Entrega_Final.xlsx", "rb") as file:
+                # Criar o botão de download para baixar o arquivo Excel exatamente como ele está
+                st.download_button(
+                    label="Baixar planilha",
+                    data=file,
+                    file_name="Entrega_Final.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+                        
+            
+        
+        
     def enviar_pedido(self, loja1, pedido1, loja2, pedido2, loja3, pedido3):
         
         Lojas = [loja1, loja2, loja3]
@@ -470,6 +537,7 @@ class MultiplasTelas:
                     pedidos.append(dic)
 
         return pedidos
+
 
 
     def Dashboard(self):
@@ -593,6 +661,7 @@ class MultiplasTelas:
             st.dataframe(df_meses)
             st.dataframe(df_lojas)
         
+
 
     """def Dashboard2(self):
         if self.df_pedidos == False:
@@ -765,6 +834,7 @@ class MultiplasTelas:
             fig.update_layout(yaxis=dict(categoryorder='total ascending'))
         return fig
 """
+    
     
     
     def atualizar_estoque(self, df, estoque, Id=None):
