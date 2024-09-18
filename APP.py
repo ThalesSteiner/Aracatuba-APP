@@ -24,7 +24,7 @@ from openpyxl.utils import range_boundaries
 
 class MultiplasTelas:
     def __init__(self):
-        self.tamanho_max_cartela = 128
+        self.tamanho_max_cartela = 133
         self.meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
         self.df_pedidos = False
         self.empresas =  ["Nenhuma"] + self.buscar_clientes()
@@ -106,7 +106,10 @@ class MultiplasTelas:
                         if "pedidos_empresa" in st.session_state:
                             Id = st.selectbox("Selecione o ID", st.session_state.pedidos_empresa, key="id_selectbox")
                             if st.button("Buscar Pedido por Empresa"):
-                                Funções().Exibir_pedido(AWS().buscar_pedido_ID(Id))
+                                pedido = AWS().buscar_pedido_ID(Id)
+                                Funções().Exibir_pedido(pedido)
+                     
+                            
                     except:
                         st.warning("Erro ao buscar ID")
             else:
@@ -114,6 +117,7 @@ class MultiplasTelas:
                 if st.button("Pesquisar", key="Botão2"):
                     pedido = AWS().buscar_pedido_ID(Id)
                     Funções().Exibir_pedido(pedido)
+
 
     
     def cadastro_empresa(self):
@@ -304,6 +308,7 @@ class MultiplasTelas:
         venda = st.radio("Forma de Venda", ["Consignado", "Venda"])
 
         valor_cartela = st.number_input("Valor da Cartela")
+        valor_cartela_aço = st.number_input("Valor da Cartela Aço")
 
         if st.button("Confirmar Cadastro"):
                 df = df[df['Quantidade'] != 0]
@@ -322,6 +327,7 @@ class MultiplasTelas:
                             "Hora": str(self.Data_hora()),
                             "Tipo de Venda": venda,
                             "Valor da cartela": str(valor_cartela),
+                            "valor da cartela aço":str(valor_cartela_aço),
                             "Pedidos": pedido
                             }
                         
@@ -345,19 +351,20 @@ class MultiplasTelas:
                         st.success(f"Cadastro do pedido {Id} da empresa {loja} feito com sucesso!")
                     except:
                         st.warning("ERRO AO CADASTRAR")
-
-    
+   
 
     def Separar_pedido(self):
+        
         st.title("Separar Pedido")
+        my_grid = grid(3, vertical_align="bottom")
         data_nota = st.date_input("Data de recebimento", format="DD/MM/YYYY")
-        Id1 = st.text_input("Id")
-        Id2 = st.text_input("Id", key="2")
-        Id3 = st.text_input("Id", key="3")
+        Id1 = my_grid.text_input("Id")
+        Id2 = my_grid.text_input("Id", key="2")
+        Id3 = my_grid.text_input("Id", key="3")
 
         if st.button("Pesquisar"):
             # Carregar o modelo de referência
-            df = pd.read_excel("Modelo final.xlsx")
+            df = pd.read_excel("Modelo_Final.xlsx")
 
             lista_id = [Id1, Id2, Id3]
             df.iloc[1, 1] = lista_id[0]
@@ -366,8 +373,9 @@ class MultiplasTelas:
             lista_index = [[1, 3, 5, 7], [10, 12, 14, 16], [19, 21, 23, 25]]
             lojas = []
             preço_p = []
+            preço_p_aco = []
             quantidade_p = []
-
+            quantidade_p_aco = []
             i = 0
 
             for id in lista_id:
@@ -375,22 +383,26 @@ class MultiplasTelas:
                     pedido = AWS().buscar_pedido_ID(id)
                     lojas.append(pedido["Loja"])
                     preço_p.append(float(pedido["Valor da cartela"]))
+                    preço_p_aco.append(float(pedido["valor da cartela aço"]))
 
                     pedido_dic = dict(pedido["Pedidos"])
                     lista_cartela = [0 for _ in range(self.tamanho_max_cartela)]
                     for cartela, quantidade in pedido_dic.items():
                         lista_cartela[int(cartela.split(" ")[1]) - 1] = int(quantidade)
 
+                    #Colunas com o somatorio
                     lista_1 = lista_cartela[:34] + [sum(lista_cartela[:34])]
                     lista_2 = lista_cartela[34:68] + [sum(lista_cartela[34:68])]
                     lista_3 = lista_cartela[68:102] + [sum(lista_cartela[68:102])]
                     lista_4 = lista_cartela[102:] + [sum(lista_cartela[102:])]
 
+                    quantidade_p_aco.append(sum(lista_cartela[128:]))
+                    
                     df.iloc[4:39, lista_index[i][0]] = lista_1
                     df.iloc[4:39, lista_index[i][1]] = lista_2
                     df.iloc[4:39, lista_index[i][2]] = lista_3
 
-                    df.iloc[4:30, lista_index[i][3]] = lista_4[:-1]
+                    df.iloc[4:35, lista_index[i][3]] = lista_4[:-1]
 
                     # Adiciona a soma na última coluna que é diferente das demais
                     df.iloc[38, lista_index[i][3]] = lista_4[-1]
@@ -405,18 +417,18 @@ class MultiplasTelas:
             df.iloc[2, 10] = lojas[1]
             df.iloc[2, 19] = lojas[2]
 
-            df.iloc[42, 0] = preço_p[0]
-            df.iloc[42, 9] = preço_p[1]
-            df.iloc[42, 18] = preço_p[2]
+            df.iloc[42, 0] = f"{preço_p[0]} + {preço_p_aco[0]}"
+            df.iloc[42, 9] = f"{preço_p[1]} + {preço_p_aco[1]}"
+            df.iloc[42, 18] = f"{preço_p[2]} + {preço_p_aco[2]}"
 
             df.iloc[42, 3] = quantidade_p[0]
             df.iloc[42, 12] = quantidade_p[1]
             df.iloc[42, 21] = quantidade_p[2]
 
-            df.iloc[42, 6] = float(quantidade_p[0]) * float(preço_p[0])
-            df.iloc[42, 15] = float(quantidade_p[1]) * float(preço_p[1])
-            df.iloc[42, 24] = float(quantidade_p[2]) * float(preço_p[2])
-
+            
+            df.iloc[42, 6] = ((float(quantidade_p[0]) - float(quantidade_p_aco[0])) * float(preço_p[0])) + (float(quantidade_p_aco[0]) * float(preço_p_aco[0]))
+            df.iloc[42, 15] = ((float(quantidade_p[1]) - float(quantidade_p_aco[1])) * float(preço_p[1])) + (float(quantidade_p_aco[1]) * float(preço_p_aco[1]))
+            df.iloc[42, 24] = ((float(quantidade_p[2]) - float(quantidade_p_aco[2])) * float(preço_p[2])) + (float(quantidade_p_aco[2]) * float(preço_p_aco[2]))
 
             output_file = "Modelo_temporario.xlsx"
             
@@ -463,8 +475,7 @@ class MultiplasTelas:
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
                         
-            
-        
+    
         
     def enviar_pedido(self, loja1, pedido1, loja2, pedido2, loja3, pedido3):
         
@@ -886,8 +897,7 @@ class MultiplasTelas:
                 if st.button("Salvar estoque", key="Botão3"):
                     self.atualizar_estoque(df2, "Parafuso Caixa", Id)
     
-   
-    
+      
     def Rotas(self):
         Cadastro_empresas = self.buscar_cadastro_empresas()
 
@@ -985,6 +995,61 @@ class MultiplasTelas:
         st_folium(mapa, width=1800, height=800)
     
     
+    def Rotas2(self):
+        df = self.Buscar_dados()
+        
+        """mygrid =  grid(2, 2, vertical_align="bottom")
+        # Adicionar filtros
+        status_selecionados = mygrid.multiselect("Selecione o status das lojas", options=set(Status), default=["Ativo"])
+        lojas_selecionadas = mygrid.multiselect("Selecione as lojas", options=set(lojas), default=["Todas"])
+        bairros_selecionados = mygrid.multiselect("Selecione os bairros", options=set(bairros), default=["Todos"])
+        cidades_selecionadas = mygrid.multiselect("Selecione as cidades", options=set(cidades), default=["Todas"])
+
+
+        # Filtrar dados com base nas seleções
+        filtro = [
+            (lat, lon, loja, statu, endereco2)
+            for lat, lon, loja, statu, endereco2 in zip(latitudes, longitudes, lojas, Status, endereços)
+            if (statu in status_selecionados) and
+            (lojas_selecionadas == ["Todas"] or loja in lojas_selecionadas) and
+            (bairros_selecionados == ["Todos"] or endereco2["Bairro"] in bairros_selecionados) and
+            (cidades_selecionadas == ["Todas"] or endereco2["Cidade"] in cidades_selecionadas)
+        ]
+
+        if not filtro:
+            st.write("Nenhuma loja encontrada com os filtros selecionados.")
+            return"""
+
+        df = pd.read_excel("Mapa novas lojas.xlsx")
+        
+        mapa = folium.Map(location=[-22.832113794507347, -43.346853465267536], zoom_start=13)
+        marker_cluster = MarkerCluster().add_to(mapa)
+
+        for N_loja, empresa , endereço, link_maps, tipo, lat, lon in df.values:
+            try:
+                endereco = f"{endereço}"
+            except:
+                endereco = "Endereço não encontratado"
+
+            try:
+                folium.Marker(
+                    [lat, lon],
+                    popup=folium.Popup(f"{empresa} / {endereco}", max_width=300),
+                    icon=folium.Icon(icon="cloud", color="green")
+                ).add_to(mapa)
+
+            except:
+                print("Erro")
+                
+        folium.Marker(
+            [-22.832113794507347, -43.346853465267536],
+            popup="Araçatuba Material",
+            icon=folium.Icon(icon="home", color="orange")
+        ).add_to(mapa)
+
+        st_folium(mapa, width=1800, height=800)
+        
+        
     def main(self, lista):
         
         self.lista_abas = lista
@@ -1004,15 +1069,21 @@ class MultiplasTelas:
             elif pagina_selecionada == "Dashboard":
                 lista_navegação.append(st.Page(self.Dashboard, title="📈 Dashboard"))
             elif pagina_selecionada == "Rotas":
-                lista_navegação.append(st.Page(self.Rotas, title="🚚 Rotas"))
+                lista_navegação.append(st.Page(self.Rotas2, title="🚚 Rotas"))
         
         pg = st.navigation({"Aracatuba parafusos":lista_navegação}, position="sidebar")
         pg.run()
 
 
+
+    @st.cache_data
+    def Buscar_dados(_self):
+        df = pd.read_excel("Mapa novas lojas.xlsx")
+        return df
+
     @st.experimental_dialog("Aviso de pedido")
     def Aviso_pedido(self, id, empresa):
-        st.write(f"O pedido ID:{id} da empresa {empresa} foi confirmado")
+        st.write(f"O pedido ID: {id} da empresa {empresa} foi confirmado")
         if st.button("Confirmar"):
             st.rerun()
 
@@ -1029,12 +1100,23 @@ class MultiplasTelas:
     @st.cache_data
     def buscar_cadastro_empresas(_self):
         Cadastro_empresas = AWS().Buscar_todos_cadastro_clientes()
-        print("Função chamada")
-        print(len(Cadastro_empresas))
         return Cadastro_empresas
     
     @st.cache_data
     def tabela_estoque_formatada(_self, Estoque):
+        estoque_atual = AWS().buscar_Estoque(Estoque)
+        df = pd.DataFrame(estoque_atual)
+        df = df.reset_index()
+        df2 = pd.DataFrame()
+        df2["Cartela"] = df["index"]           
+        df2["Quantidade"] = df["Quantidade"]
+        df2['Número'] = df2["Cartela"].str.extract('(\d+)').astype(int)
+        df2 = df2.sort_values(by='Número').drop(columns='Número')
+        #print("Print_tabela chamada")
+        return df2
+    
+    @st.cache_data
+    def tabela_pedido_formatada(_self, Estoque):
         estoque_atual = AWS().buscar_Estoque(Estoque)
         df = pd.DataFrame(estoque_atual)
         df = df.reset_index()
