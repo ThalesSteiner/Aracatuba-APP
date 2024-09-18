@@ -296,6 +296,7 @@ class MultiplasTelas:
     def cadastro_novo_pedido(self):
         st.title("Cadastro de novos pedidos")
         lista = []
+        cartela_aco = [129,130,131,132,133]
         for i in range(1, self.tamanho_max_cartela+1):
             lista.append({"Tamanho": f"Cartela {i}", "Quantidade": 0})
         df2 = pd.DataFrame(lista)
@@ -320,7 +321,17 @@ class MultiplasTelas:
                 else:
                     try:
                         quantidade_parafusos = sum(df['Quantidade'].tolist())
+                        
+                        quantidade_p_aco = []
+                        for N_cartela, N_parafuso in pedido.items():
+                            numero_cartela = int(N_cartela.split(" ")[1])
+                            if numero_cartela in cartela_aco:
+                                quantidade_p_aco.append(int(N_parafuso))
+                            
+                            
+                        
                         Id = AWS().Gerar_novo_id()
+                        
                         dic = {"ID": str(Id),
                             "Loja": loja,
                             "Data": str(data),
@@ -330,15 +341,16 @@ class MultiplasTelas:
                             "valor da cartela aço":str(valor_cartela_aço),
                             "Pedidos": pedido
                             }
-                        
+
+                        valor_pedido = str((((int(quantidade_parafusos) - sum(quantidade_p_aco)) * float(valor_cartela)) + (int(sum(quantidade_p_aco)) *  float(valor_cartela_aço))))
                         controle_coleta = {
                             "ID": (str(Id)),
                             "Status": str("Em debito"),
                             "Data recebimento": str(data),
                             "Nome da empresa": str(loja),
-                            "Valor": str(float(quantidade_parafusos) * float(valor_cartela)),
+                            "Valor": valor_pedido,
                             "Debito": "Sim",
-                            "Valor pendente": str(float(quantidade_parafusos) * float(valor_cartela)),
+                            "Valor pendente": valor_pedido,
                             "Forma pagamento": "Não declarada"}
                         
                         data = f"{self.meses[int(data.month)-1]}-{data.year}"
