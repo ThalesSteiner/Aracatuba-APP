@@ -1081,7 +1081,7 @@ class MultiplasTelas:
             elif pagina_selecionada == "Dashboard":
                 lista_navegação.append(st.Page(self.Dashboard, title="📈 Dashboard"))
             elif pagina_selecionada == "Rotas":
-                lista_navegação.append(st.Page(self.Rotas2, title="🚚 Rotas"))
+                lista_navegação.append(st.Page(self.Rotas, title="🚚 Rotas"))
         
         pg = st.navigation({"Aracatuba parafusos":lista_navegação}, position="sidebar")
         pg.run()
