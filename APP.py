@@ -68,6 +68,7 @@ class MultiplasTelas:
                 }
                 AWS().adicionar_pedido_Controle_Coleta(dic)
                 st.success(f"Ordem confirmada, pedido {ID_compra} da empresa {Nome_empresa} no valor de {Valor} enviado")
+                
         with tab2:
             st.title("Consulta de débito")
             debito = st.checkbox("Pesquisar pedidos não pagos")
@@ -77,6 +78,7 @@ class MultiplasTelas:
                 
             else:
                 Id = st.text_input("Coloque o ID da consulta")
+                
             if st.button("Pesquisar"):
                 try:
                     pedido = AWS().buscar_pedido_controle_coleta(Id)
@@ -315,9 +317,12 @@ class MultiplasTelas:
                 df = df[df['Quantidade'] != 0]
                 #df["Tamanho"] = [cartela.split(" ")[1] for cartela in df["Tamanho"].tolist()]
                 pedido = dict(zip(df['Tamanho'], df['Quantidade']))
-
+                quantidade_total_parafusos = sum(df["Quantidade"].tolist())
+                
                 if pedido == {'Tamanho': {}, 'Quantidade': {}}:
                     st.warning("Pedido vazio")
+                elif quantidade_total_parafusos < 50:
+                    self.Aviso_pedido(f"Pedido total com: {quantidade_total_parafusos} parafusos")
                 else:
                     try:
                         quantidade_parafusos = sum(df['Quantidade'].tolist())
@@ -358,9 +363,13 @@ class MultiplasTelas:
                         AWS().adicionar_pedido_tabela_pedidos_gerais(data,Id,dic)
                         AWS().adicionar_pedido_tabela_pedidosID(dic)
                         AWS().adicionar_pedido_Controle_Coleta(controle_coleta)
+                        
                         AWS().adicionar_pedido_nao_pago("Aracatuba Parafusos", str(Id))
-                        self.Aviso_pedido(Id, loja)
-                        st.success(f"Cadastro do pedido {Id} da empresa {loja} feito com sucesso!")
+                        
+                        self.Aviso_pedido(f"""O pedido ID: {Id} da empresa {loja} foi confirmado, 
+                                          Total de parafusos: {quantidade_total_parafusos}, 
+                                          Preço total do pedido: {valor_pedido}""")
+                        
                     except:
                         st.warning("ERRO AO CADASTRAR")
    
@@ -376,7 +385,7 @@ class MultiplasTelas:
 
         if st.button("Pesquisar"):
             # Carregar o modelo de referência
-            df = pd.read_excel("Modelo_Final.xlsx")
+            df = pd.read_excel("Planilha_referencia.xlsx")
 
             lista_id = [Id1, Id2, Id3]
             df.iloc[1, 1] = lista_id[0]
@@ -429,9 +438,9 @@ class MultiplasTelas:
             df.iloc[2, 10] = lojas[1]
             df.iloc[2, 19] = lojas[2]
 
-            df.iloc[42, 0] = f"{preço_p[0]} + {preço_p_aco[0]}"
-            df.iloc[42, 9] = f"{preço_p[1]} + {preço_p_aco[1]}"
-            df.iloc[42, 18] = f"{preço_p[2]} + {preço_p_aco[2]}"
+            df.iloc[42, 0] = f"{preço_p[0]} / {preço_p_aco[0]}"
+            df.iloc[42, 9] = f"{preço_p[1]} / {preço_p_aco[1]}"
+            df.iloc[42, 18] = f"{preço_p[2]} / {preço_p_aco[2]}"
 
             df.iloc[42, 3] = quantidade_p[0]
             df.iloc[42, 12] = quantidade_p[1]
@@ -448,7 +457,7 @@ class MultiplasTelas:
             df.to_excel(output_file, index=False)
 
             # Carregar a planilha existente com openpyxl
-            workbook = load_workbook('Modelo final.xlsx')
+            workbook = load_workbook('Planilha_referencia.xlsx')
             sheet = workbook.active
 
             # Abrir o arquivo Excel salvo temporariamente com o DataFrame modificado
@@ -483,7 +492,7 @@ class MultiplasTelas:
                 st.download_button(
                     label="Baixar planilha",
                     data=file,
-                    file_name="Entrega_Final.xlsx",
+                    file_name=f"Lista dos pedidos ID: {Id1} {Id2} {Id3} .xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
                         
@@ -684,181 +693,6 @@ class MultiplasTelas:
             st.dataframe(df_meses)
             st.dataframe(df_lojas)
         
-
-
-    """def Dashboard2(self):
-        if self.df_pedidos == False:
-            self.gerar_dado()
-        
-        df = self.df_pedidos
-
-        try:
-            st.title("Pedidos")
-            tabela_completa = st.toggle('Tabela Completa')
-            lista_concatenada = list(map(lambda x, y: x +" "+ y, list(map(str, df["Ano"].tolist())), df["Mês"].tolist()))
-            df.insert(3, "Ano mês", lista_concatenada)
-
-            lista_empresas = ["Todos"] + df['Loja'].unique().tolist()
-            my_grid = grid(4, vertical_align="bottom")
-
-            loja = my_grid.multiselect("Escolha as Lojas", lista_empresas)
-            mês = my_grid.multiselect("Escolha o Mês", ["Todos"] + self.meses)
-            ano = my_grid.multiselect("Escolha o Ano", ["todos"] + list(range(2011, 2023)))
-            rota = my_grid.multiselect("Escolha a Rota", ["todos", "Rota1", "Rota2", "Rota3"])
-
-            df_filtrado = df.copy()
-
-            if "todos" not in ano:
-                df_filtrado = df_filtrado[df_filtrado["Ano"].isin(ano)]
-
-            if "Todos" not in mês:
-                df_filtrado = df_filtrado[df_filtrado["Mês"].isin(mês)]
-
-            if "Todos" not in loja:
-                df_filtrado = df_filtrado[df_filtrado["Loja"].isin(loja)]
-
-
-            #Dataframes filtrados
-
-            df_venda_quantidade = df_filtrado.groupby("Loja")["Quantidade"].mean()
-            df_venda_quantidade = df_venda_quantidade.reset_index()
-            
-            df_venda_quantidade_media = df_filtrado.groupby("Loja")["Loja"].sum()
-            df_venda_quantidade_media = df_venda_quantidade.reset_index()
-
-            df_venda_quantidade_media_desvio_padrao = df_filtrado.groupby("Loja")["Quantidade"].std()
-            df_venda_quantidade_media_desvio_padrao = df_venda_quantidade_media_desvio_padrao.reset_index()
-
-            df_venda_por_mês = df_filtrado.groupby("Mês")["Quantidade"].sum()
-            df_venda_por_mês = df_venda_por_mês.reset_index()
-            
-            
-
-            df_venda_por_ano = df_filtrado.groupby(["Ano"])["Quantidade"].sum()
-            df_venda_por_ano = df_venda_por_ano.reset_index()
-
-            df_venda_media_ano_por_mês = df_filtrado.groupby(["Ano mês"])["Quantidade"].sum()
-            df_venda_media_ano_por_mês = df_venda_media_ano_por_mês.reset_index()
-
-            dics_venda_total_cartela = {"Cartela": [], "Quantidade": []}
-            dics_media_total_cartela = {"Cartela": [], "Quantidade": []}
-
-            cartela = df.columns[5:].tolist()
-
-            for cart in cartela:
-                dics_venda_total_cartela["Cartela"].append(cart)
-                dics_venda_total_cartela["Quantidade"].append(df_filtrado[cart].sum())
-            
-            for cart in cartela:
-                dics_media_total_cartela["Cartela"].append(cart)
-                dics_media_total_cartela["Quantidade"].append(df_filtrado[cart].mean())
-            
-
-
-            df_venda_por_cartela = pd.DataFrame(dics_venda_total_cartela)
-            df_venda_media_por_cartela = pd.DataFrame(dics_media_total_cartela)
-
-
-            print(df_venda_por_cartela)
-
-            df_estoque = df_venda_media_por_cartela.copy()
-            df_estoque["Quantidade"] = self.estoque_parafusos["Quantidade"] - df_venda_por_cartela["Quantidade"]
-            print(df_estoque)
-
-
-
-            if not df_venda_quantidade.empty:  # Verificar se o dataframe df_dash não está vazio
-                my_grid = grid(4, vertical_align="bottom")
-                vendas_totais = sum(df_filtrado["Quantidade"].tolist())*2
-                quantidade = sum(df_filtrado["Quantidade"].tolist())
-                media_vendas = round(np.mean(df_venda_quantidade["Quantidade"]),2)
-                desvio = round(np.std(df_venda_quantidade["Quantidade"]),2)
-                
-                my_grid.metric(label="Vendas totais", value=f"R$: {round(vendas_totais,2)}")
-                my_grid.metric(label="Total de parafusos", value= quantidade)
-                my_grid.metric(label="Média", value=media_vendas)
-                my_grid.metric(label="Desvio padrão", value=desvio)
-                style_metric_cards()
-            
-
-            my_grid = grid(2, 2, 2, 2, 2,vertical_align="bottom")
-
-            #Row1
-            if "Todos" not in loja:
-                fig = px.pie(df_venda_quantidade, values="Quantidade", names="Loja", width=700, height=700)
-                my_grid.plotly_chart(fig, theme="streamlit")
-
-            fig = px.bar(df_venda_quantidade_media, title="Média vendas por loja", x="Quantidade", y="Loja", width=600, height=700)
-            fig.update_layout(yaxis=dict(categoryorder='total ascending'))
-            mini = min(df_venda_quantidade_media["Quantidade"].tolist())
-            maxi = max(df_venda_quantidade_media["Quantidade"].tolist()) 
-            fig.update_layout(xaxis=dict(range=[mini-2, maxi]))
-            my_grid.plotly_chart(fig, theme="streamlit")
-
-            my_grid.plotly_chart(self.projetar_grafico(df_venda_quantidade_media, "Média vendas por loja", "Quantidade", "Loja", "Sim"), theme="streamlit" )
-            
-            my_grid.plotly_chart(self.projetar_grafico(df_venda_quantidade_media_desvio_padrao, "Desvio padrão das médias vendas por loja ", "Quantidade", "Loja", "Sim"), theme="streamlit" )
-
-            my_grid.plotly_chart(self.projetar_grafico(df_venda_por_mês, "Vendas totais de cartela", "Quantidade", "Mês", "Sim", "Sim"), theme="streamlit" )
-
-            my_grid.plotly_chart(self.projetar_grafico(df_venda_media_ano_por_mês, "Maiores vendas por Ano/Mês", "Quantidade", "Ano mês", "Sim", "Sim"), theme="streamlit")
-
-            my_grid.plotly_chart(self.projetar_grafico(df_venda_por_ano, "Melhores vendas por Ano", "Ano", "Quantidade", "Sim", "Não"), theme="streamlit")
-
-            my_grid.plotly_chart(self.projetar_grafico(df_venda_por_cartela, "Venda total de cartela", "Quantidade", "Cartela", "Sim", "Sim"), theme="streamlit")
-
-            my_grid.plotly_chart(self.projetar_grafico(df_venda_media_por_cartela, "Venda média de cartela", "Quantidade", "Cartela", "Sim" , "Sim"), theme="streamlit")
-            
-            try:
-                df_estoque_positivo = df_estoque[df_estoque["Quantidade"] > 0]
-                my_grid.dataframe(df_estoque_positivo,  width=700, height=400)
-            except:
-                my_grid.error("Todos Parafusos precisam ser reposto")
-
-            try:
-                df_estoque_negativo = df_estoque[df_estoque["Quantidade"] <= 0]
-                my_grid.dataframe(df_estoque_negativo,  width=700, height=400)
-
-            except:
-                my_grid.success("Nenhuma cartela precisa ser reposto")
-
-            time.sleep(1)
-
-            if tabela_completa:
-                st.dataframe(df, width=700, height=400)
-            else:
-                st.dataframe(df_filtrado, width=700, height=400)
-
-            
-            my_grid = grid(2, 2, 2, vertical_align="bottom")
-
-            my_grid.title("Vendas totais das empresas no periodo analisado")
-            time.sleep(0.5)
-            try:
-                my_grid.dataframe(df_venda_quantidade, width=700, height=400)
-            except:
-                st.error("Coloque mais meses para avaliação")
-            time.sleep(0.5)
-            my_grid.dataframe(df_venda_por_mês, width=700, height=400)
-            time.sleep(0.5)
-            my_grid.dataframe(df_venda_por_ano, width=700, height=400)
-            time.sleep(0.5)
-            my_grid.dataframe(df_venda_media_ano_por_mês, width=700, height=400)
-        except:
-            st.error("Coloque um periodo")
-
-    def projetar_grafico(self, dataframe, Titulo, x, y, ordenar="Não", suavizar="Sim"):
-        fig = px.bar(dataframe, title=Titulo, x=x, y=y, width=500, height=700)
-        if suavizar == "Sim":
-            mini = min(dataframe[x].tolist())
-            maxi = max(dataframe[x].tolist()) 
-            fig.update_layout(xaxis=dict(range=[mini-(0.1*mini), maxi]))
-        if ordenar == "Sim":
-            fig.update_layout(yaxis=dict(categoryorder='total ascending'))
-        return fig
-"""
-    
-    
     
     def atualizar_estoque(self, df, estoque, Id=None):
         dic_estoque = df.to_dict()
@@ -1094,17 +928,19 @@ class MultiplasTelas:
         return df
 
     @st.experimental_dialog("Aviso de pedido")
-    def Aviso_pedido(self, id, empresa):
-        st.write(f"O pedido ID: {id} da empresa {empresa} foi confirmado")
+    def Aviso_pedido(self, aviso):
+        st.write(f"{aviso}")
         if st.button("Confirmar"):
             st.rerun()
+            
+    
 
     @st.cache_data
     def buscar_empresa(_self, empresa):
         print(f"Função chamada {empresa}")
         return AWS().buscar_cadastro_empresa(empresa)
     
-    @st.cache_data
+    #@st.cache_data
     def buscar_pedidos_nao_pagos(_self):
         print("Pedidos não pagos")
         return [item['S'] for item in AWS().buscar_pedido_nao_pago()]
