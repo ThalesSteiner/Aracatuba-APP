@@ -82,7 +82,7 @@ class Iniciar:
             if credencial == "1":
                 Acesso = ["Cadastrar novo pedido", "Cadastro de Empresa", "Controle de Coleta", "Rotas"]
             elif credencial == "2":
-                Acesso = ["Separar pedido", "Cadastro de Empresa", "Cadastrar novo pedido", "Estoque", "Rotas"]
+                Acesso = ["Controle de Coleta","Separar pedido", "Cadastro de Empresa", "Cadastrar novo pedido", "Estoque", "Rotas"]
             elif credencial == "3":
                 Acesso = ["Controle de Coleta", "Cadastro de Empresa", "Cadastrar novo pedido", "Separar pedido", "Estoque", "Rotas"]
             elif credencial == "4":
