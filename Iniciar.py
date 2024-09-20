@@ -80,13 +80,13 @@ class Iniciar:
             Acesso = ["Controle de Coleta", "Cadastro de Empresa", "Cadastrar novo pedido", "Separar pedido", "Estoque", "Dashboard"]
 
             if credencial == "1":
-                Acesso = ["Cadastrar novo pedido", "Cadastro de Empresa", "Controle de Coleta", "Rotas"]
+                Acesso = ["Consulta de Pedidos", "Cadastrar novo pedido", "Cadastro de Empresa", "Rotas"]
             elif credencial == "2":
-                Acesso = ["Controle de Coleta","Separar pedido", "Cadastro de Empresa", "Cadastrar novo pedido", "Estoque", "Rotas"]
+                Acesso = ["Consulta de Pedidos","Separar pedido", "Cadastro de Empresa", "Cadastrar novo pedido", "Estoque", "Rotas"]
             elif credencial == "3":
-                Acesso = ["Controle de Coleta", "Cadastro de Empresa", "Cadastrar novo pedido", "Separar pedido", "Estoque", "Rotas"]
+                Acesso = ["Controle de Coleta", "Consulta de Pedidos" ,"Cadastro de Empresa", "Cadastrar novo pedido", "Separar pedido", "Estoque", "Rotas"]
             elif credencial == "4":
-                Acesso = ["Controle de Coleta", "Cadastro de Empresa", "Cadastrar novo pedido", "Separar pedido", "Estoque", "Dashboard", "Rotas"]
+                Acesso = ["Controle de Coleta", "Consulta de Pedidos", "Cadastro de Empresa", "Cadastrar novo pedido", "Separar pedido", "Estoque", "Dashboard", "Rotas"]
             else:
                 st.error("Credencial inválida.")
                 return

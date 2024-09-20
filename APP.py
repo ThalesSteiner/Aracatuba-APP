@@ -30,47 +30,50 @@ class MultiplasTelas:
         self.empresas =  ["Nenhuma"] + self.buscar_clientes()
 
 
-    def Controle_coleta(self):
-        tab1, tab2, tab3= st.tabs(["Controle", "Consulta débito", "Consulta pedido"])
-        
-        with tab1:
-            ID_compra = st.text_input("ID compra")
+    def Controle_coleta(self):       
+        with st.popover("Como enviar pedidos"):
+                st.write("Como enviar pedido")
+                st.write("https://www.youtube.com/watch?v=NKaTRQl8PBQ")
+        ID_compra = st.text_input("ID compra")
     
             # Definindo variáveis para armazenar os valores inseridos pelo usuário
-            data_recebimento = st.date_input("Data de recebimento", format="DD/MM/YYYY")
-            mes = data_recebimento.month
-            ano = data_recebimento.year
-            
-            Nome_empresa = st.selectbox("Nome empresa", self.empresas)
-            Valor = st.number_input("Valor")
-            Detalhe_pedido = st.radio("Algum debito ficou pendente", ["Não", "Sim"])
-            if Detalhe_pedido == "Sim":
-                Valor_pendente = st.number_input("Valor pendente")    
-            Forma_pagamento = st.radio("Selecione forma pagamento:", ["PIX", "Dinheiro", "Débito","Boleto","Cheque"])
-            
+        data_recebimento = st.date_input("Data de recebimento", format="DD/MM/YYYY")
+        mes = data_recebimento.month
+        ano = data_recebimento.year
+        
+        Nome_empresa = st.selectbox("Nome empresa", self.empresas)
+        Valor = st.number_input("Valor")
+        Detalhe_pedido = st.radio("Algum debito ficou pendente", ["Não", "Sim"])
+        if Detalhe_pedido == "Sim":
+            Valor_pendente = st.number_input("Valor pendente")    
+        Forma_pagamento = st.radio("Selecione forma pagamento:", ["PIX", "Dinheiro", "Débito","Boleto","Cheque"])
+        
 
-            if st.button("Confirmar Ordens"):
-                if Detalhe_pedido == "Não":
-                    Valor_pendente = 0
-                    Status = "Quitado"
-                    AWS().remover_pedido_nao_pago("Aracatuba Parafusos", str(ID_compra))
-                else:
-                    Status = "Em debito"
-                dic = {
-                    "ID": (ID_compra),
-                    "Status": str(Status),
-                    "Data recebimento": str(data_recebimento),
-                    "Nome da empresa": str(Nome_empresa),
-                    "Valor": int(Valor),
-                    "Debito": str(Detalhe_pedido),
-                    "Valor pendente": str(Valor_pendente),
-                    "Forma pagamento": str(Forma_pagamento)
-                }
-                AWS().adicionar_pedido_Controle_Coleta(dic)
-                st.success(f"Ordem confirmada, pedido {ID_compra} da empresa {Nome_empresa} no valor de {Valor} enviado")
-                
-        with tab2:
-            st.title("Consulta de débito")
+        if st.button("Confirmar Ordens"):
+            if Detalhe_pedido == "Não":
+                Valor_pendente = 0
+                Status = "Quitado"
+                AWS().remover_pedido_nao_pago("Aracatuba Parafusos", str(ID_compra))
+            else:
+                Status = "Em debito"
+            dic = {
+                "ID": (ID_compra),
+                "Status": str(Status),
+                "Data recebimento": str(data_recebimento),
+                "Nome da empresa": str(Nome_empresa),
+                "Valor": int(Valor),
+                "Debito": str(Detalhe_pedido),
+                "Valor pendente": str(Valor_pendente),
+                "Forma pagamento": str(Forma_pagamento)
+            }
+            AWS().adicionar_pedido_Controle_Coleta(dic)
+            st.success(f"Ordem confirmada, pedido {ID_compra} da empresa {Nome_empresa} no valor de {Valor} enviado")
+
+    def Consulta_pedidos(self):
+        tab1, tab2= st.tabs(["Consulta de Débito", "Consulta de Pedido"])
+
+        with tab1:
+            st.title("Consulta de Débito")
             debito = st.checkbox("Pesquisar pedidos não pagos")
             if debito:
                 buscar = self.buscar_pedidos_nao_pagos()
@@ -96,7 +99,7 @@ class MultiplasTelas:
                     st.warning("Pedido não achado")
             
                     
-        with tab3:
+        with tab2:
             st.title("Consulta de Pedido")
 
             if st.checkbox("Consultar Empresa"):
@@ -119,7 +122,6 @@ class MultiplasTelas:
                 if st.button("Pesquisar", key="Botão2"):
                     pedido = AWS().buscar_pedido_ID(Id)
                     Funções().Exibir_pedido(pedido)
-
 
     
     def cadastro_empresa(self):
@@ -379,9 +381,9 @@ class MultiplasTelas:
         st.title("Separar Pedido")
         my_grid = grid(3, vertical_align="bottom")
         data_nota = st.date_input("Data de recebimento", format="DD/MM/YYYY")
-        Id1 = my_grid.text_input("Id")
-        Id2 = my_grid.text_input("Id", key="2")
-        Id3 = my_grid.text_input("Id", key="3")
+        Id1 = my_grid.text_input("ID")
+        Id2 = my_grid.text_input("ID", key="2")
+        Id3 = my_grid.text_input("ID", key="3")
 
         if st.button("Pesquisar"):
             # Carregar o modelo de referência
@@ -906,6 +908,8 @@ class MultiplasTelas:
                 lista_navegação.append(st.Page(self.cadastro_empresa, title= "🏢 Cadastro de Empresa"))
             elif pagina_selecionada == "Cadastrar novo pedido":
                 lista_navegação.append(st.Page(self.cadastro_novo_pedido, title="📝 Cadastrar novo pedido"))
+            elif pagina_selecionada == "Consulta de Pedidos":
+                lista_navegação.append(st.Page(self.Consulta_pedidos, title="📑 Consulta de Pedidos"))
             elif pagina_selecionada == "Controle de Coleta":
                 lista_navegação.append(st.Page(self.Controle_coleta, title="📦 Controle de Coleta"))
             elif pagina_selecionada == "Separar pedido":
@@ -940,7 +944,7 @@ class MultiplasTelas:
         print(f"Função chamada {empresa}")
         return AWS().buscar_cadastro_empresa(empresa)
     
-    #@st.cache_data
+    @st.cache_data
     def buscar_pedidos_nao_pagos(_self):
         print("Pedidos não pagos")
         return [item['S'] for item in AWS().buscar_pedido_nao_pago()]
