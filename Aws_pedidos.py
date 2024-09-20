@@ -154,7 +154,7 @@ class AWS:
         )
         return response
     
-    #Adiciona a cliente na tabela de Pedido para consultar todas as atividades do cliente
+    #Adiciona o cliente na tabela de Pedido para consultar todas as atividades do cliente
     def adicionar_loja_tabela_pedidos(self, nome):
         self.aws_conexão()
         try:
