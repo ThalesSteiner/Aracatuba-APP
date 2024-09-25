@@ -127,6 +127,10 @@ class MultiplasTelas:
     def cadastro_empresa(self):
         tab1, tab2 = st.tabs(["Empresa","Consultar Empresa"])
         with tab1:
+            with st.popover("Como cadastrar empresas"):
+                st.write("Como cadastrar empresas")
+                st.write("https://youtu.be/a4fnYCs0B1I")
+                
             st.title("Cadastro de Empresas")
             st.write("Dados Gerais",)
             my_grid = grid(3, 4, [2,1,1], [2,2,1,1],2, vertical_align="bottom")
@@ -324,7 +328,7 @@ class MultiplasTelas:
                 if pedido == {'Tamanho': {}, 'Quantidade': {}}:
                     st.warning("Pedido vazio")
                 elif quantidade_total_parafusos < 50:
-                    self.Aviso_pedido(f"Pedido total com: {quantidade_total_parafusos} parafusos")
+                    self.Aviso_pedido(f"Pedido total com: {quantidade_total_parafusos} parafusos está abaixo do mínimo de 50")
                 else:
                     try:
                         quantidade_parafusos = sum(df['Quantidade'].tolist())
