@@ -69,6 +69,7 @@ class MultiplasTelas:
             AWS().adicionar_pedido_Controle_Coleta(dic)
             st.success(f"Ordem confirmada, pedido {ID_compra} da empresa {Nome_empresa} no valor de {Valor} enviado")
 
+
     def Consulta_pedidos(self):
         tab1, tab2= st.tabs(["Consulta de Débito", "Consulta de Pedido"])
 
@@ -384,7 +385,7 @@ class MultiplasTelas:
         
         st.title("Separar Pedido")
         my_grid = grid(3, vertical_align="bottom")
-        data_nota = st.date_input("Data de recebimento", format="DD/MM/YYYY")
+        data_nota = st.date_input("Data de emissão", format="DD/MM/YYYY")
         Id1 = my_grid.text_input("ID")
         Id2 = my_grid.text_input("ID", key="2")
         Id3 = my_grid.text_input("ID", key="3")
@@ -438,8 +439,12 @@ class MultiplasTelas:
 
                     i += 1
                 else:
+                    lojas.append("")
+                    preço_p.append("")
+                    preço_p_aco.append("")
+                    quantidade_p.append("")
                     i += 1
-
+            
             df.iloc[2, 1] = lojas[0]
             df.iloc[2, 10] = lojas[1]
             df.iloc[2, 19] = lojas[2]
@@ -452,11 +457,22 @@ class MultiplasTelas:
             df.iloc[42, 12] = quantidade_p[1]
             df.iloc[42, 21] = quantidade_p[2]
 
-            
-            df.iloc[42, 6] = ((float(quantidade_p[0]) - float(quantidade_p_aco[0])) * float(preço_p[0])) + (float(quantidade_p_aco[0]) * float(preço_p_aco[0]))
-            df.iloc[42, 15] = ((float(quantidade_p[1]) - float(quantidade_p_aco[1])) * float(preço_p[1])) + (float(quantidade_p_aco[1]) * float(preço_p_aco[1]))
-            df.iloc[42, 24] = ((float(quantidade_p[2]) - float(quantidade_p_aco[2])) * float(preço_p[2])) + (float(quantidade_p_aco[2]) * float(preço_p_aco[2]))
+            try:
+                df.iloc[42, 6] = ((float(quantidade_p[0]) - float(quantidade_p_aco[0])) * float(preço_p[0])) + (float(quantidade_p_aco[0]) * float(preço_p_aco[0]))
+            except:
+                pass
 
+            try:
+                df.iloc[42, 15] = ((float(quantidade_p[1]) - float(quantidade_p_aco[1])) * float(preço_p[1])) + (float(quantidade_p_aco[1]) * float(preço_p_aco[1]))
+            except:
+                pass
+
+            try:
+                df.iloc[42, 24] = ((float(quantidade_p[2]) - float(quantidade_p_aco[2])) * float(preço_p[2])) + (float(quantidade_p_aco[2]) * float(preço_p_aco[2]))
+            except:
+                pass
+
+            
             output_file = "Modelo_temporario.xlsx"
             
             # Salvar o DataFrame modificado em um novo arquivo Excel temporário
@@ -502,8 +518,7 @@ class MultiplasTelas:
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
                         
-    
-        
+       
     def enviar_pedido(self, loja1, pedido1, loja2, pedido2, loja3, pedido3):
         
         Lojas = [loja1, loja2, loja3]
@@ -822,13 +837,19 @@ class MultiplasTelas:
             if statu == "Ativo":
                 folium.Marker(
                     [lat, lon],
-                    popup=folium.Popup(f"{loja} / {endereco}", max_width=300),
+                    popup=folium.Popup(
+                        f"<b>{loja}</b><br>{endereco}<br>", 
+                        max_width=300
+                    ),
                     icon=folium.Icon(icon="cloud")
                 ).add_to(mapa)
             elif statu == "Inativo":
                 folium.Marker(
                     [lat, lon],
-                    popup=folium.Popup(f"{loja}\n{endereco}", max_width=300),
+                    popup=folium.Popup(
+                        f"<b>{loja}</b><br>{endereco}<br>", 
+                        max_width=300
+                    ),
                     icon=folium.Icon(icon="remove", color="red")
                 ).add_to(mapa)
             else:
@@ -848,50 +869,41 @@ class MultiplasTelas:
     
     
     def Rotas2(self):
-        df = self.Buscar_dados()
+        df = pd.read_csv("Lojas_RJ_csv.csv")
+        bairros = pd.read_csv("Bairros.csv")["Lista bairros"].tolist()
         
-        """mygrid =  grid(2, 2, vertical_align="bottom")
-        # Adicionar filtros
-        status_selecionados = mygrid.multiselect("Selecione o status das lojas", options=set(Status), default=["Ativo"])
-        lojas_selecionadas = mygrid.multiselect("Selecione as lojas", options=set(lojas), default=["Todas"])
-        bairros_selecionados = mygrid.multiselect("Selecione os bairros", options=set(bairros), default=["Todos"])
-        cidades_selecionadas = mygrid.multiselect("Selecione as cidades", options=set(cidades), default=["Todas"])
-
-
-        # Filtrar dados com base nas seleções
-        filtro = [
-            (lat, lon, loja, statu, endereco2)
-            for lat, lon, loja, statu, endereco2 in zip(latitudes, longitudes, lojas, Status, endereços)
-            if (statu in status_selecionados) and
-            (lojas_selecionadas == ["Todas"] or loja in lojas_selecionadas) and
-            (bairros_selecionados == ["Todos"] or endereco2["Bairro"] in bairros_selecionados) and
-            (cidades_selecionadas == ["Todas"] or endereco2["Cidade"] in cidades_selecionadas)
-        ]
-
-        if not filtro:
-            st.write("Nenhuma loja encontrada com os filtros selecionados.")
-            return"""
-
-        df = pd.read_excel("Mapa novas lojas.xlsx")
+        
+        mygrid =  grid(1, vertical_align="bottom")
+        
+        status_selecionados = mygrid.multiselect("Selecione o bairro", options=set(bairros))
+        
+        if status_selecionados == "":
+            pass
+        else:
+            # Criar uma condição para verificar se algum dos bairros está contido na string
+            filtro = df['Endereços'].apply(lambda x: any(bairro in x for bairro in status_selecionados))
+            df_filtrado = df[filtro]
         
         mapa = folium.Map(location=[-22.832113794507347, -43.346853465267536], zoom_start=13)
         marker_cluster = MarkerCluster().add_to(mapa)
 
-        for N_loja, empresa , endereço, link_maps, tipo, lat, lon in df.values:
+        for N_loja, empresa, endereço, link_maps, tipo, lat, lon in df_filtrado.iloc[:, -7:].values:
             try:
                 endereco = f"{endereço}"
             except:
-                endereco = "Endereço não encontratado"
+                endereco = "Endereço não encontrado"
 
             try:
                 folium.Marker(
                     [lat, lon],
-                    popup=folium.Popup(f"{empresa} / {endereco}", max_width=300),
+                    popup=folium.Popup(
+                        f"<b>{empresa}</b><br>{endereco}<br><a href='{link_maps}' target='_blank'>Abrir no Google Maps</a>",
+                        max_width=300
+                    ),
                     icon=folium.Icon(icon="cloud", color="green")
                 ).add_to(mapa)
-
-            except:
-                print("Erro")
+            except Exception as e:
+                print(f"Erro ao adicionar marcador: {e}")
                 
         folium.Marker(
             [-22.832113794507347, -43.346853465267536],
@@ -924,6 +936,8 @@ class MultiplasTelas:
                 lista_navegação.append(st.Page(self.Dashboard, title="📈 Dashboard"))
             elif pagina_selecionada == "Rotas":
                 lista_navegação.append(st.Page(self.Rotas, title="🚚 Rotas"))
+            elif pagina_selecionada == "Rotas clientes":
+                lista_navegação.append(st.Page(self.Rotas2, title="🚚 Rotas clientes"))
         
         pg = st.navigation({"Aracatuba parafusos":lista_navegação}, position="sidebar")
         pg.run()
