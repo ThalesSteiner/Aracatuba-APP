@@ -884,6 +884,7 @@ class MultiplasTelas:
             filtro = df['Endereços'].apply(lambda x: any(bairro in x for bairro in status_selecionados))
             df_filtrado = df[filtro]
         
+        
         mapa = folium.Map(location=[-22.832113794507347, -43.346853465267536], zoom_start=13)
         marker_cluster = MarkerCluster().add_to(mapa)
 
