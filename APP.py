@@ -31,9 +31,6 @@ class MultiplasTelas:
 
 
     def Controle_coleta(self):       
-        with st.popover("Como enviar pedidos"):
-                st.write("Como enviar pedido")
-                st.write("https://www.youtube.com/watch?v=NKaTRQl8PBQ")
         ID_compra = st.text_input("ID compra")
     
             # Definindo variáveis para armazenar os valores inseridos pelo usuário
@@ -168,7 +165,7 @@ class MultiplasTelas:
                         "Nome": Nome_nova_empresa,
                         "Representante": Nome_representante,
                         "Status": "Ativo",
-                        "Data cadastro": Data_cadastro,
+                        "Data cadastro": str(Data_cadastro),
                         "CPF/CNPJ": Cpf_cnpj,
                         "Telefone_contato": Telefone_contato,
                         "Telefone_fixo": Telefone_contato2,
@@ -187,11 +184,13 @@ class MultiplasTelas:
                         }
                     }
                     print("TESTANDO")
+                    #cadastra o cliente na tabela de endereços geral
                     AWS().cadastro_cliente_endereço(dic)
-                    AWS().adicionar_cliente(Nome_nova_empresa)
-                    AWS().adicionar_cliente_tabela_Cliente_lista(Nome_nova_empresa)
+                    #AWS().adicionar_cliente(Nome_nova_empresa)
+                    print("TESTANDO2")
+                    AWS().adicionar_cliente_tabela_Cliente_lista(str(Nome_nova_empresa))
+                    print("TESTANDO3")
                     AWS().adicionar_loja_tabela_pedidos(Nome_nova_empresa)
-                    
                     st.success(f"Cadastro da empresa {Nome_nova_empresa} feito com sucesso!")
                 except:
                     st.warning(f"Falha ao cadastrar")
@@ -520,7 +519,9 @@ class MultiplasTelas:
                         
        
     def enviar_pedido(self, loja1, pedido1, loja2, pedido2, loja3, pedido3):
-        
+        with st.popover("Como enviar pedidos"):
+            st.write("Como enviar pedido")
+            st.write("https://www.youtube.com/watch?v=NKaTRQl8PBQ")
         Lojas = [loja1, loja2, loja3]
         data_frame = [pedido1, pedido2, pedido3]
         data_frame2 = []
@@ -599,7 +600,7 @@ class MultiplasTelas:
         st.title("Pedidos")
         tabela_completa = st.toggle('Tabela Completa')
         my_grid = grid(2,3, vertical_align="bottom")
-        Cidade = my_grid.multiselect("Escolha a Bairro", ["todos", "Rio de janeiro", "São joão de meriti", "Nova Iguaçu"])
+        Cidade = my_grid.multiselect("Escolha a Cidade", ["todos", "Rio de janeiro", "São joão de meriti", "Nova Iguaçu"])
         Bairro = my_grid.multiselect("Escolha a Bairro", ["todos", "Piedade", "Meier", "Madureira"])
         #Bairro = my_grid.multiselect("Escolha a Bairro", ["todos", "Rota1", "Rota2", "Rota3"])
         
@@ -884,11 +885,15 @@ class MultiplasTelas:
             filtro = df['Endereços'].apply(lambda x: any(bairro in x for bairro in status_selecionados))
             df_filtrado = df[filtro]
         
-        
-        mapa = folium.Map(location=[-22.832113794507347, -43.346853465267536], zoom_start=13)
-        marker_cluster = MarkerCluster().add_to(mapa)
-
-        for N_loja, empresa, endereço, link_maps, tipo, lat, lon in df_filtrado.iloc[:, -7:].values:
+        long_media = np.mean(df_filtrado["Longitude"].astype(float).tolist())
+        lat_media = np.mean(df_filtrado["Latitude"].astype(float).tolist())
+        try:
+            mapa = folium.Map(location=[lat_media, long_media], zoom_start=14)
+            marker_cluster = MarkerCluster().add_to(mapa)
+        except:
+            mapa = folium.Map(location=[-22.832113794507347, -43.346853465267536], zoom_start=14)
+            marker_cluster = MarkerCluster().add_to(mapa)
+        for N_loja, empresa, endereço, link_maps, tipo, lat, lon in df_filtrado.iloc[:, -7:].values:    
             try:
                 endereco = f"{endereço}"
             except:

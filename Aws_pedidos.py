@@ -139,20 +139,22 @@ class AWS:
 
 
     def adicionar_cliente_tabela_Cliente_lista(self, cliente_nome):
-        self.aws_conexão
+        self.aws_conexão()
         table = self.dynamodb.Table('Clientes_Lista')
 
-        # Atualiza o item, adicionando o novo nome à lista
-        response = table.update_item(
-            Key={'ID': 'ListaClientes'},
-            UpdateExpression="SET Clientes = list_append(if_not_exists(Clientes, :empty_list), :cliente_nome)",
-            ExpressionAttributeValues={
-                ':cliente_nome': [cliente_nome],
-                ':empty_list': []
-            },
-            ReturnValues="UPDATED_NEW"
-        )
-        return response
+        try:
+            response = table.update_item(
+                Key={'ID': 'ListaClientes'},
+                UpdateExpression="SET Clientes = list_append(if_not_exists(Clientes, :empty_list), :cliente_nome)",
+                ExpressionAttributeValues={
+                    ':cliente_nome': [cliente_nome],
+                    ':empty_list': []
+                },
+                ReturnValues="UPDATED_NEW"
+            )
+            return response
+        except Exception as e:
+            print(f"Erro ao cadastrar cliente na lista de clientes: {e}")
     
     #Adiciona o cliente na tabela de Pedido para consultar todas as atividades do cliente
     def adicionar_loja_tabela_pedidos(self, nome):
