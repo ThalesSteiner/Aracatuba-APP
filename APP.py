@@ -471,7 +471,7 @@ class MultiplasTelas:
             except:
                 pass
 
-            
+            df.replace(0 , "", inplace=True)
             output_file = "Modelo_temporario.xlsx"
             
             # Salvar o DataFrame modificado em um novo arquivo Excel temporário
