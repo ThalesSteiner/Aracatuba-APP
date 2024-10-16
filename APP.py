@@ -309,15 +309,22 @@ class MultiplasTelas:
             lista.append({"Tamanho": f"Cartela {i}", "Quantidade": 0})
         df2 = pd.DataFrame(lista)
         df = st.data_editor(df2, height=500, width=400)
-
-        loja = st.selectbox("loja", self.empresas)
         
+
+
+        loja = st.selectbox("loja", self.empresas)        
         data = st.date_input("Data do Pedido", format="DD/MM/YYYY")
-
         venda = st.radio("Forma de Venda", ["Consignado", "Venda"])
+        valor_cartela = st.number_input("Valor da Cartela", 2)
+        valor_cartela_aço = st.number_input("Valor da Cartela Aço", 3.5)
 
-        valor_cartela = st.number_input("Valor da Cartela")
-        valor_cartela_aço = st.number_input("Valor da Cartela Aço")
+        lista_parafusos = df["Quantidade"].tolist()
+        quantidade_parafusos = sum(lista_parafusos)
+        st.title(f"Quantidade de parafusos: {quantidade_parafusos}")
+        st.title(f"Valor total do pedido: {sum(lista_parafusos[:128]) * valor_cartela + (sum(lista_parafusos[128:]) * valor_cartela_aço)}")
+
+
+
 
         if st.button("Confirmar Cadastro"):
                 df = df[df['Quantidade'] != 0]
@@ -518,35 +525,6 @@ class MultiplasTelas:
                 )
                         
        
-    def enviar_pedido(self, loja1, pedido1, loja2, pedido2, loja3, pedido3):
-        with st.popover("Como enviar pedidos"):
-            st.write("Como enviar pedido")
-            st.write("https://www.youtube.com/watch?v=NKaTRQl8PBQ")
-        Lojas = [loja1, loja2, loja3]
-        data_frame = [pedido1, pedido2, pedido3]
-        data_frame2 = []
-        i = 0
-        for dataf in data_frame:
-            if Lojas[i] != "Nenhuma":
-                df = dataf[dataf['Quantidade'] != 0]
-                df['Tamanho'] = [str(i) for i in df['Tamanho']]
-                df['Quantidade'] = [str(i) for i in df['Quantidade']]
-                dict_chave_valor = dict(zip(df['Tamanho'], df['Quantidade']))
-                id = int(AWS().Gerar_novo_id())
-                data = self.Data_hora()
-                dic = {"ID": str(id),
-                    "Loja": Lojas[i],
-                    "Data": data,
-                    "Pedidos": dict_chave_valor}
-                AWS().adicionar_pedido_tabela_pedidos(Lojas[i],dic)
-                AWS().adicionar_pedido_tabela_pedidosID(dic)
-                st.success(f"Pedido da empresa {Lojas[i]}")
-            else:
-                pass
-            i += 1
-        #st.write(data_frame2)  
-
-
 
     def Data_hora(self):
         try:
