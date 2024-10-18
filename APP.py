@@ -981,8 +981,7 @@ class MultiplasTelas:
         df2 = df2.sort_values(by='Número').drop(columns='Número')
         #print("Print_tabela chamada")
         return df2
-    
-    @st.cache_data
+
     def buscar_clientes(_self):
         return AWS().buscar_clientes()
     
