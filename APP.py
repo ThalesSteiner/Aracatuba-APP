@@ -336,6 +336,8 @@ class MultiplasTelas:
                     st.warning("Pedido vazio")
                 elif quantidade_total_parafusos < 50:
                     self.Aviso_pedido(f"Pedido total com: {quantidade_total_parafusos} parafusos está abaixo do mínimo de 50")
+                elif loja == "Nenhuma":
+                    self.Aviso_pedido(f"Por favor selecione uma loja")
                 else:
                     try:
                         quantidade_parafusos = sum(df['Quantidade'].tolist())
@@ -981,7 +983,8 @@ class MultiplasTelas:
         df2 = df2.sort_values(by='Número').drop(columns='Número')
         #print("Print_tabela chamada")
         return df2
-
+    
+    @st.cache_data
     def buscar_clientes(_self):
         return AWS().buscar_clientes()
     
