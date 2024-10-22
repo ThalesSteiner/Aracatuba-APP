@@ -327,7 +327,7 @@ class MultiplasTelas:
 
 
         if st.button("Confirmar Cadastro"):
-                with st.spinner("Enviado pedido..."):
+                with st.spinner("Enviando pedido..."):
                     time.sleep(6)
                     df = df[df['Quantidade'] != 0]
                     #df["Tamanho"] = [cartela.split(" ")[1] for cartela in df["Tamanho"].tolist()]
