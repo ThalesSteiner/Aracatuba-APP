@@ -321,72 +321,72 @@ class MultiplasTelas:
         lista_parafusos = df["Quantidade"].tolist()
         quantidade_parafusos = sum(lista_parafusos)
         st.title(f"Quantidade de parafusos: {quantidade_parafusos}")
-        st.title(f"Valor total do pedido: {sum(lista_parafusos[:128]) * valor_cartela + (sum(lista_parafusos[128:]) * valor_cartela_aço)}")
+        st.title(f"Valor total do pedido: R${sum(lista_parafusos[:128]) * valor_cartela + (sum(lista_parafusos[128:]) * valor_cartela_aço)}")
 
 
 
 
         if st.button("Confirmar Cadastro"):
-                df = df[df['Quantidade'] != 0]
-                #df["Tamanho"] = [cartela.split(" ")[1] for cartela in df["Tamanho"].tolist()]
-                pedido = dict(zip(df['Tamanho'], df['Quantidade']))
-                quantidade_total_parafusos = sum(df["Quantidade"].tolist())
-                
-                if pedido == {'Tamanho': {}, 'Quantidade': {}}:
-                    st.warning("Pedido vazio")
-                elif quantidade_total_parafusos < 50:
-                    self.Aviso_pedido(f"Pedido total com: {quantidade_total_parafusos} parafusos está abaixo do mínimo de 50")
-                elif loja == "Nenhuma":
-                    self.Aviso_pedido(f"Por favor selecione uma loja")
-                else:
-                    try:
-                        quantidade_parafusos = sum(df['Quantidade'].tolist())
-                        
-                        quantidade_p_aco = []
-                        for N_cartela, N_parafuso in pedido.items():
-                            numero_cartela = int(N_cartela.split(" ")[1])
-                            if numero_cartela in cartela_aco:
-                                quantidade_p_aco.append(int(N_parafuso))
+                with st.spinner("Enviado pedido..."):
+                    time.sleep(6)
+                    df = df[df['Quantidade'] != 0]
+                    #df["Tamanho"] = [cartela.split(" ")[1] for cartela in df["Tamanho"].tolist()]
+                    pedido = dict(zip(df['Tamanho'], df['Quantidade']))
+                    quantidade_total_parafusos = sum(df["Quantidade"].tolist())
+                    
+                    if pedido == {'Tamanho': {}, 'Quantidade': {}}:
+                        st.warning("Pedido vazio")
+                    elif quantidade_total_parafusos < 50:
+                        self.Aviso_pedido(f"Pedido total com: {quantidade_total_parafusos} parafusos está abaixo do mínimo de 50")
+                    elif loja == "Nenhuma":
+                        self.Aviso_pedido(f"Por favor selecione uma loja")
+                    else:
+                        try:
+                            quantidade_parafusos = sum(df['Quantidade'].tolist())
                             
+                            quantidade_p_aco = []
+                            for N_cartela, N_parafuso in pedido.items():
+                                numero_cartela = int(N_cartela.split(" ")[1])
+                                if numero_cartela in cartela_aco:
+                                    quantidade_p_aco.append(int(N_parafuso))
                             
-                        
-                        Id = AWS().Gerar_novo_id()
-                        
-                        dic = {"ID": str(Id),
-                            "Loja": loja,
-                            "Data": str(data),
-                            "Hora": str(self.Data_hora()),
-                            "Tipo de Venda": venda,
-                            "Valor da cartela": str(valor_cartela),
-                            "valor da cartela aço":str(valor_cartela_aço),
-                            "Pedidos": pedido
-                            }
+                            Id = AWS().Gerar_novo_id()
+                            
+                            dic = {"ID": str(Id),
+                                "Loja": loja,
+                                "Data": str(data),
+                                "Hora": str(self.Data_hora()),
+                                "Tipo de Venda": venda,
+                                "Valor da cartela": str(valor_cartela),
+                                "valor da cartela aço":str(valor_cartela_aço),
+                                "Pedidos": pedido
+                                }
 
-                        valor_pedido = str((((int(quantidade_parafusos) - sum(quantidade_p_aco)) * float(valor_cartela)) + (int(sum(quantidade_p_aco)) *  float(valor_cartela_aço))))
-                        controle_coleta = {
-                            "ID": (str(Id)),
-                            "Status": str("Em debito"),
-                            "Data recebimento": str(data),
-                            "Nome da empresa": str(loja),
-                            "Valor": valor_pedido,
-                            "Debito": "Sim",
-                            "Valor pendente": valor_pedido,
-                            "Forma pagamento": "Não declarada"}
-                        
-                        data = f"{self.meses[int(data.month)-1]}-{data.year}"
-                        AWS().adicionar_pedido_tabela_pedidos(loja,Id)
-                        AWS().adicionar_pedido_tabela_pedidos_gerais(data,Id,dic)
-                        AWS().adicionar_pedido_tabela_pedidosID(dic)
-                        AWS().adicionar_pedido_Controle_Coleta(controle_coleta)
-                        
-                        AWS().adicionar_pedido_nao_pago("Aracatuba Parafusos", str(Id))
-                        
-                        self.Aviso_pedido(f"""O pedido ID: {Id} da empresa {loja} foi confirmado, 
-                                          Total de parafusos: {quantidade_total_parafusos}, 
-                                          Preço total do pedido: {valor_pedido}""")
-                        
-                    except:
-                        st.warning("ERRO AO CADASTRAR")
+                            valor_pedido = str((((int(quantidade_parafusos) - sum(quantidade_p_aco)) * float(valor_cartela)) + (int(sum(quantidade_p_aco)) *  float(valor_cartela_aço))))
+                            controle_coleta = {
+                                "ID": (str(Id)),
+                                "Status": str("Em debito"),
+                                "Data recebimento": str(data),
+                                "Nome da empresa": str(loja),
+                                "Valor": valor_pedido,
+                                "Debito": "Sim",
+                                "Valor pendente": valor_pedido,
+                                "Forma pagamento": "Não declarada"}
+                            
+                            data = f"{self.meses[int(data.month)-1]}-{data.year}"
+                            AWS().adicionar_pedido_tabela_pedidos(loja,Id)
+                            AWS().adicionar_pedido_tabela_pedidos_gerais(data,Id,dic)
+                            AWS().adicionar_pedido_tabela_pedidosID(dic)
+                            AWS().adicionar_pedido_Controle_Coleta(controle_coleta)
+                            
+                            AWS().adicionar_pedido_nao_pago("Aracatuba Parafusos", str(Id))
+                            
+                            self.Aviso_pedido(f"""O pedido ID: {Id} da empresa {loja} foi confirmado, 
+                                            Total de parafusos: {quantidade_total_parafusos}, 
+                                            Preço total do pedido: {valor_pedido}""")
+                            
+                        except:
+                            st.warning("ERRO AO CADASTRAR")
    
 
     def Separar_pedido(self):
