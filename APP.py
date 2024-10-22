@@ -325,8 +325,8 @@ class MultiplasTelas:
 
 
 
-
-        if st.button("Confirmar Cadastro"):
+        if loja != "Nenhuma":
+    		if st.button("Confirmar Cadastro"):
                 with st.spinner("Enviando pedido..."):
                     time.sleep(6)
                     df = df[df['Quantidade'] != 0]
@@ -338,8 +338,6 @@ class MultiplasTelas:
                         st.warning("Pedido vazio")
                     elif quantidade_total_parafusos < 50:
                         self.Aviso_pedido(f"Pedido total com: {quantidade_total_parafusos} parafusos está abaixo do mínimo de 50")
-                    elif loja == "Nenhuma":
-                        self.Aviso_pedido(f"Por favor selecione uma loja")
                     else:
                         try:
                             quantidade_parafusos = sum(df['Quantidade'].tolist())
