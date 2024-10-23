@@ -323,8 +323,6 @@ class MultiplasTelas:
         st.title(f"Quantidade de parafusos: {quantidade_parafusos}")
         st.title(f"Valor total do pedido: R${sum(lista_parafusos[:128]) * valor_cartela + (sum(lista_parafusos[128:]) * valor_cartela_aço)}")
 
-
-
         if loja != "Nenhuma":
             if st.button("Confirmar Cadastro"):
                     with st.spinner("Enviando pedido..."):
@@ -387,6 +385,8 @@ class MultiplasTelas:
                                 
                             except:
                                 st.warning("ERRO AO CADASTRAR")
+        else:
+            st.warning("Selecione uma loja para poder enviar o pedido")
    
 
     def Separar_pedido(self):
