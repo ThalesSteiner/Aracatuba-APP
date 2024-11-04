@@ -20,6 +20,8 @@ from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.utils import get_column_letter
 from openpyxl.utils import range_boundaries
+from geopy.distance import geodesic
+
 
 
 class MultiplasTelas:
@@ -28,6 +30,8 @@ class MultiplasTelas:
         self.meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
         self.df_pedidos = False
         self.empresas =  ["Nenhuma"] + self.buscar_clientes()
+        np.seterr(invalid='ignore', divide='ignore')
+        np.seterr(all='ignore')
 
 
     def Controle_coleta(self):       
@@ -850,54 +854,105 @@ class MultiplasTelas:
     
     
     def Rotas2(self):
+        Cadastro_empresas = self.buscar_cadastro_empresas()
         df = pd.read_csv("Lojas_RJ_csv.csv")
         bairros = pd.read_csv("Bairros.csv")["Lista bairros"].tolist()
+
+        # Extrair nomes das empresas cadastradas
+        lista_nome_lojas = [empresa["Nome"] for empresa in Cadastro_empresas]
+
+        # Configuração do grid na interface
+        mygrid = grid(1, vertical_align="bottom")
+
+        # Seleção de bairros e loja
+        
+        #status_selecionados = mygrid.multiselect("Selecione o bairro", options=set(["Todos"] + bairros))
+        loja_selecionada = mygrid.selectbox("Selecione a loja", lista_nome_lojas, key="2")
+        raio = st.number_input("Coloque o tamanho do raio em KM de busca")
+
+        # Inicializar latitude e longitude para a loja selecionada
+        lat, log = 0, 0
+        nome = ""
+        for empresa in Cadastro_empresas:
+            if loja_selecionada == empresa["Nome"]:
+                log = float(empresa["Longitude"])
+                lat = float(empresa["Latitude"])
+                break
+
+        #print(f"Latitude: {lat}, Longitude: {log}")
+        lista_nome_empresas = []
         
         
-        mygrid =  grid(1, vertical_align="bottom")
         
-        status_selecionados = mygrid.multiselect("Selecione o bairro", options=set(bairros))
+        # Calcular distância de cada loja em 'df' a partir da loja selecionada
+        for num1, num2, num3, nome, endereco, link, tipo, lat2, log2 in df.values:
+            try:
+                # Calcula a distância usando a biblioteca geopy
+                distancia = geodesic((lat, log), (float(lat2), float(log2))).kilometers
+                #print(f"Distância até {nome}: {distancia:.2f} km")
+                
+                # Verifica se a distância está dentro do raio especificado (opcional)
+                if float(distancia) <= raio:
+                    lista_nome_empresas.append(nome)
+                    #print(f"{nome} está dentro do raio de {raio} km")
+            
+            except Exception as e:
+                print(f"Erro ao calcular a distância para {nome}: {e}")
+
+        df_filtrado = df[df['Empresas'].isin(lista_nome_empresas)]
+    
         
-        if status_selecionados == "":
+        """if status_selecionados == "Todos":
             pass
         else:
             # Criar uma condição para verificar se algum dos bairros está contido na string
             filtro = df['Endereços'].apply(lambda x: any(bairro in x for bairro in status_selecionados))
             df_filtrado = df[filtro]
+            df = df_filtrado"""
         
         long_media = np.mean(df_filtrado["Longitude"].astype(float).tolist())
         lat_media = np.mean(df_filtrado["Latitude"].astype(float).tolist())
+        
         try:
-            mapa = folium.Map(location=[lat_media, long_media], zoom_start=14)
-            marker_cluster = MarkerCluster().add_to(mapa)
-        except:
-            mapa = folium.Map(location=[-22.832113794507347, -43.346853465267536], zoom_start=14)
-            marker_cluster = MarkerCluster().add_to(mapa)
-        for N_loja, empresa, endereço, link_maps, tipo, lat, lon in df_filtrado.iloc[:, -7:].values:    
             try:
-                endereco = f"{endereço}"
+                mapa = folium.Map(location=[lat_media, long_media], zoom_start=14)
+                marker_cluster = MarkerCluster().add_to(mapa)
             except:
-                endereco = "Endereço não encontrado"
+                mapa = folium.Map(location=[-22.832113794507347, -43.346853465267536], zoom_start=14)
+                marker_cluster = MarkerCluster().add_to(mapa)
+            for N_loja, empresa, endereço, link_maps, tipo, lat, lon in df_filtrado.iloc[:, -7:].values:    
+                try:
+                    endereco = f"{endereço}"
+                except:
+                    endereco = "Endereço não encontrado"
 
-            try:
-                folium.Marker(
-                    [lat, lon],
-                    popup=folium.Popup(
-                        f"<b>{empresa}</b><br>{endereco}<br><a href='{link_maps}' target='_blank'>Abrir no Google Maps</a>",
-                        max_width=300
-                    ),
-                    icon=folium.Icon(icon="cloud", color="green")
-                ).add_to(mapa)
-            except Exception as e:
-                print(f"Erro ao adicionar marcador: {e}")
-                
-        folium.Marker(
-            [-22.832113794507347, -43.346853465267536],
-            popup="Araçatuba Material",
-            icon=folium.Icon(icon="home", color="orange")
-        ).add_to(mapa)
+                try:
+                    folium.Marker(
+                        [lat, lon],
+                        popup=folium.Popup(
+                            f"<b>{empresa}</b><br>{endereco}<br><a href='{link_maps}' target='_blank'>Abrir no Google Maps</a>",
+                            max_width=300
+                        ),
+                        icon=folium.Icon(icon="cloud", color="green")
+                    ).add_to(mapa)
+                except Exception as e:
+                    print(f"Erro ao adicionar marcador: {e}")
+                    
+            folium.Marker(
+                [-22.832113794507347, -43.346853465267536],
+                popup="Araçatuba Material",
+                icon=folium.Icon(icon="home", color="orange")
+            ).add_to(mapa)
+            
+            folium.Marker(
+                [lat, log],
+                popup=loja_selecionada,
+                icon=folium.Icon(icon="home", color="purple")
+            ).add_to(mapa)
 
-        st_folium(mapa, width=1800, height=800)
+            st_folium(mapa, width=1800, height=800)
+        except:
+            st.warning("Erro ao plotar mapa")
         
         
     def main(self, lista):
