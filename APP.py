@@ -320,7 +320,9 @@ class MultiplasTelas:
         data = st.date_input("Data do Pedido", format="DD/MM/YYYY")
         venda = st.radio("Forma de Venda", ["Consignado", "Venda"])
         valor_cartela = st.number_input("Valor da Cartela", 2)
-        valor_cartela_aço = st.number_input("Valor da Cartela Aço", 3.5)
+        
+        valor_cartela_aço = valor_cartela
+        #valor_cartela_aço = st.number_input("Valor da Cartela Aço", 3.5)
 
         lista_parafusos = df["Quantidade"].tolist()
         quantidade_parafusos = sum(lista_parafusos)
@@ -403,132 +405,135 @@ class MultiplasTelas:
         Id3 = my_grid.text_input("ID", key="3")
 
         if st.button("Pesquisar"):
-            # Carregar o modelo de referência
-            df = pd.read_excel("Planilha_referencia.xlsx")
-
-            lista_id = [Id1, Id2, Id3]
-            df.iloc[1, 1] = lista_id[0]
-            df.iloc[1, 10] = lista_id[1]
-            df.iloc[1, 19] = lista_id[2]
-            lista_index = [[1, 3, 5, 7], [10, 12, 14, 16], [19, 21, 23, 25]]
-            lojas = []
-            preço_p = []
-            preço_p_aco = []
-            quantidade_p = []
-            quantidade_p_aco = []
-            i = 0
-
-            for id in lista_id:
-                if id != '':
-                    pedido = AWS().buscar_pedido_ID(id)
-                    lojas.append(pedido["Loja"])
-                    preço_p.append(float(pedido["Valor da cartela"]))
-                    preço_p_aco.append(float(pedido["valor da cartela aço"]))
-
-                    pedido_dic = dict(pedido["Pedidos"])
-                    lista_cartela = [0 for _ in range(self.tamanho_max_cartela)]
-                    for cartela, quantidade in pedido_dic.items():
-                        lista_cartela[int(cartela.split(" ")[1]) - 1] = int(quantidade)
-
-                    #Colunas com o somatorio
-                    lista_1 = lista_cartela[:34] + [sum(lista_cartela[:34])]
-                    lista_2 = lista_cartela[34:68] + [sum(lista_cartela[34:68])]
-                    lista_3 = lista_cartela[68:102] + [sum(lista_cartela[68:102])]
-                    lista_4 = lista_cartela[102:] + [sum(lista_cartela[102:])]
-
-                    quantidade_p_aco.append(sum(lista_cartela[128:]))
-                    
-                    df.iloc[4:39, lista_index[i][0]] = lista_1
-                    df.iloc[4:39, lista_index[i][1]] = lista_2
-                    df.iloc[4:39, lista_index[i][2]] = lista_3
-
-                    df.iloc[4:35, lista_index[i][3]] = lista_4[:-1]
-
-                    # Adiciona a soma na última coluna que é diferente das demais
-                    df.iloc[38, lista_index[i][3]] = lista_4[-1]
-
-                    quantidade_p.append(sum(lista_cartela))
-
-                    i += 1
-                else:
-                    lojas.append("")
-                    preço_p.append("")
-                    preço_p_aco.append("")
-                    quantidade_p.append("")
-                    i += 1
-            
-            df.iloc[2, 1] = lojas[0]
-            df.iloc[2, 10] = lojas[1]
-            df.iloc[2, 19] = lojas[2]
-
-            df.iloc[42, 0] = f"{preço_p[0]} / {preço_p_aco[0]}"
-            df.iloc[42, 9] = f"{preço_p[1]} / {preço_p_aco[1]}"
-            df.iloc[42, 18] = f"{preço_p[2]} / {preço_p_aco[2]}"
-
-            df.iloc[42, 3] = quantidade_p[0]
-            df.iloc[42, 12] = quantidade_p[1]
-            df.iloc[42, 21] = quantidade_p[2]
-
             try:
-                df.iloc[42, 6] = ((float(quantidade_p[0]) - float(quantidade_p_aco[0])) * float(preço_p[0])) + (float(quantidade_p_aco[0]) * float(preço_p_aco[0]))
-            except:
-                pass
+                # Carregar o modelo de referência
+                df = pd.read_excel("Planilha_referencia.xlsx")
 
-            try:
-                df.iloc[42, 15] = ((float(quantidade_p[1]) - float(quantidade_p_aco[1])) * float(preço_p[1])) + (float(quantidade_p_aco[1]) * float(preço_p_aco[1]))
-            except:
-                pass
+                lista_id = [Id1, Id2, Id3]
+                df.iloc[1, 1] = lista_id[0]
+                df.iloc[1, 10] = lista_id[1]
+                df.iloc[1, 19] = lista_id[2]
+                lista_index = [[1, 3, 5, 7], [10, 12, 14, 16], [19, 21, 23, 25]]
+                lojas = []
+                preço_p = []
+                preço_p_aco = []
+                quantidade_p = []
+                quantidade_p_aco = []
+                i = 0
 
-            try:
-                df.iloc[42, 24] = ((float(quantidade_p[2]) - float(quantidade_p_aco[2])) * float(preço_p[2])) + (float(quantidade_p_aco[2]) * float(preço_p_aco[2]))
-            except:
-                pass
+                for id in lista_id:
+                    if id != '':
+                        pedido = AWS().buscar_pedido_ID(id)
+                        lojas.append(pedido["Loja"])
+                        preço_p.append(float(pedido["Valor da cartela"]))
+                        preço_p_aco.append(float(pedido["valor da cartela aço"]))
 
-            df.replace(0 , "", inplace=True)
-            output_file = "Modelo_temporario.xlsx"
-            
-            # Salvar o DataFrame modificado em um novo arquivo Excel temporário
-            df.to_excel(output_file, index=False)
+                        pedido_dic = dict(pedido["Pedidos"])
+                        lista_cartela = [0 for _ in range(self.tamanho_max_cartela)]
+                        for cartela, quantidade in pedido_dic.items():
+                            lista_cartela[int(cartela.split(" ")[1]) - 1] = int(quantidade)
 
-            # Carregar a planilha existente com openpyxl
-            workbook = load_workbook('Planilha_referencia.xlsx')
-            sheet = workbook.active
+                        #Colunas com o somatorio
+                        lista_1 = lista_cartela[:34] + [sum(lista_cartela[:34])]
+                        lista_2 = lista_cartela[34:68] + [sum(lista_cartela[34:68])]
+                        lista_3 = lista_cartela[68:102] + [sum(lista_cartela[68:102])]
+                        lista_4 = lista_cartela[102:] + [sum(lista_cartela[102:])]
 
-            # Abrir o arquivo Excel salvo temporariamente com o DataFrame modificado
-            df_modified = pd.read_excel(output_file)
+                        quantidade_p_aco.append(sum(lista_cartela[128:]))
+                        
+                        df.iloc[4:39, lista_index[i][0]] = lista_1
+                        df.iloc[4:39, lista_index[i][1]] = lista_2
+                        df.iloc[4:39, lista_index[i][2]] = lista_3
 
-            # Aplicar as modificações do DataFrame na planilha carregada
-            for r_idx, row in df_modified.iterrows():
-                for c_idx, value in enumerate(row):
-                    cell = sheet.cell(row=r_idx + 1, column=c_idx + 1)
+                        df.iloc[4:35, lista_index[i][3]] = lista_4[:-1]
 
-                    # Verifica se a célula faz parte de uma região mesclada
-                    if cell.coordinate in sheet.merged_cells:
-                        # Obtém a faixa mesclada (ex: A1:B2)
-                        for merged_range in sheet.merged_cells.ranges:
-                            min_col, min_row, max_col, max_row = range_boundaries(str(merged_range))
-                            if min_row == r_idx + 1 and min_col == c_idx + 1:
-                                # Somente a célula superior esquerda deve ser modificada
-                                cell.value = value
-                                break
+                        # Adiciona a soma na última coluna que é diferente das demais
+                        df.iloc[38, lista_index[i][3]] = lista_4[-1]
+
+                        quantidade_p.append(sum(lista_cartela))
+
+                        i += 1
                     else:
-                        # Caso a célula não faça parte de uma região mesclada
-                        cell.value = value
+                        lojas.append("")
+                        preço_p.append("")
+                        preço_p_aco.append("")
+                        quantidade_p.append("")
+                        i += 1
+                
+                df.iloc[2, 1] = lojas[0]
+                df.iloc[2, 10] = lojas[1]
+                df.iloc[2, 19] = lojas[2]
 
-            # Salvar o workbook com as modificações
-            workbook.save('Entrega_Final.xlsx')
-            
-            # Fechar o workbook
-            workbook.close()
-            
-            with open("Entrega_Final.xlsx", "rb") as file:
-                # Criar o botão de download para baixar o arquivo Excel exatamente como ele está
-                st.download_button(
-                    label="Baixar planilha",
-                    data=file,
-                    file_name=f"Lista dos pedidos ID: {Id1} {Id2} {Id3} .xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+                df.iloc[42, 0] = f"{preço_p[0]}"
+                df.iloc[42, 9] = f"{preço_p[1]}"
+                df.iloc[42, 18] = f"{preço_p[2]}"
+
+                df.iloc[42, 3] = quantidade_p[0]
+                df.iloc[42, 12] = quantidade_p[1]
+                df.iloc[42, 21] = quantidade_p[2]
+
+                try:
+                    df.iloc[42, 6] = ((float(quantidade_p[0]) - float(quantidade_p_aco[0])) * float(preço_p[0])) + (float(quantidade_p_aco[0]) * float(preço_p_aco[0]))
+                except:
+                    pass
+
+                try:
+                    df.iloc[42, 15] = ((float(quantidade_p[1]) - float(quantidade_p_aco[1])) * float(preço_p[1])) + (float(quantidade_p_aco[1]) * float(preço_p_aco[1]))
+                except:
+                    pass
+
+                try:
+                    df.iloc[42, 24] = ((float(quantidade_p[2]) - float(quantidade_p_aco[2])) * float(preço_p[2])) + (float(quantidade_p_aco[2]) * float(preço_p_aco[2]))
+                except:
+                    pass
+
+                df.replace(0 , "", inplace=True)
+                output_file = "Modelo_temporario.xlsx"
+                
+                # Salvar o DataFrame modificado em um novo arquivo Excel temporário
+                df.to_excel(output_file, index=False)
+
+                # Carregar a planilha existente com openpyxl
+                workbook = load_workbook('Planilha_referencia.xlsx')
+                sheet = workbook.active
+
+                # Abrir o arquivo Excel salvo temporariamente com o DataFrame modificado
+                df_modified = pd.read_excel(output_file)
+
+                # Aplicar as modificações do DataFrame na planilha carregada
+                for r_idx, row in df_modified.iterrows():
+                    for c_idx, value in enumerate(row):
+                        cell = sheet.cell(row=r_idx + 1, column=c_idx + 1)
+
+                        # Verifica se a célula faz parte de uma região mesclada
+                        if cell.coordinate in sheet.merged_cells:
+                            # Obtém a faixa mesclada (ex: A1:B2)
+                            for merged_range in sheet.merged_cells.ranges:
+                                min_col, min_row, max_col, max_row = range_boundaries(str(merged_range))
+                                if min_row == r_idx + 1 and min_col == c_idx + 1:
+                                    # Somente a célula superior esquerda deve ser modificada
+                                    cell.value = value
+                                    break
+                        else:
+                            # Caso a célula não faça parte de uma região mesclada
+                            cell.value = value
+
+                # Salvar o workbook com as modificações
+                workbook.save('Entrega_Final.xlsx')
+                
+                # Fechar o workbook
+                workbook.close()
+                
+                with open("Entrega_Final.xlsx", "rb") as file:
+                    # Criar o botão de download para baixar o arquivo Excel exatamente como ele está
+                    st.download_button(
+                        label="Baixar planilha",
+                        data=file,
+                        file_name=f"Lista dos pedidos ID: {Id1} {Id2} {Id3} .xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+            except:
+                st.warning("Erro ao buscar ID")
                         
        
 
@@ -868,7 +873,7 @@ class MultiplasTelas:
         
         #status_selecionados = mygrid.multiselect("Selecione o bairro", options=set(["Todos"] + bairros))
         loja_selecionada = mygrid.selectbox("Selecione a loja", lista_nome_lojas, key="2")
-        raio = st.number_input("Coloque o tamanho do raio em KM de busca")
+        raio = st.number_input("Defina o Tamanho do Raio para a Busca")
 
         # Inicializar latitude e longitude para a loja selecionada
         lat, log = 0, 0
