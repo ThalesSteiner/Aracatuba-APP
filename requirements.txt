@@ -9,3 +9,5 @@ datetime
 openpyxl
 streamlit_folium
 geopy
+PyPDF2
+fpdf

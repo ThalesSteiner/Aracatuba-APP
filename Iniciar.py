@@ -86,7 +86,7 @@ class Iniciar:
             elif credencial == "3":
                 Acesso = ["Controle de Coleta", "Consulta de Pedidos" ,"Cadastro de Empresa", "Cadastrar novo pedido", "Separar pedido", "Estoque", "Rotas", "Rotas clientes"]
             elif credencial == "4":
-                Acesso = ["Controle de Coleta", "Consulta de Pedidos", "Cadastro de Empresa", "Cadastrar novo pedido", "Separar pedido", "Estoque", "Dashboard", "Rotas", "Rotas clientes"]
+                Acesso = ["Controle de Coleta", "Consulta de Pedidos", "Cadastro de Empresa", "Cadastrar novo pedido", "Separar pedido", "Estoque", "Dashboard", "Rotas", "Rotas clientes", "Catalogo", "Cadastrar Catalogo"]
             else:
                 st.error("Credencial inválida.")
                 return

@@ -21,6 +21,8 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.utils import get_column_letter
 from openpyxl.utils import range_boundaries
 from geopy.distance import geodesic
+from io import BytesIO
+from PIL import Image
 
 
 
@@ -984,11 +986,72 @@ class MultiplasTelas:
                 lista_navegação.append(st.Page(self.Rotas, title="🚚 Rotas"))
             elif pagina_selecionada == "Rotas clientes":
                 lista_navegação.append(st.Page(self.Rotas2, title="🚚 Rotas clientes"))
+            elif pagina_selecionada == "Catalogo":
+                lista_navegação.append(st.Page(self.Gerar_catalogo, title="🗄 Catalogo"))
+            elif pagina_selecionada == "Cadastrar Catalogo":
+                lista_navegação.append(st.Page(self.cadastrar_catalogo, title="🗃 Cadastrar Catalogo"))
         
         pg = st.navigation({"Aracatuba parafusos":lista_navegação}, position="sidebar")
         pg.run()
 
 
+    def Gerar_catalogo(self):
+        st.title("Gerador de Catálogo PDF de Produtos")
+        produtos = AWS().buscar_produtos_catalogo()
+        todos_codigos = {p['Codigo']: p['Nome_produto'] for p in produtos}
+
+        selecionar_todos = st.checkbox("Selecionar todos")
+        
+        codigos_selecionados = st.multiselect(
+            "Selecione os códigos dos produtos para incluir no catálogo", 
+            options=todos_codigos.keys(), 
+            format_func=lambda x: f"{x} - {todos_codigos[x]}"
+        )
+        
+        if st.button("Gerar PDF"):
+            if selecionar_todos:
+                output_pdf = Funções().gerar_pdf(todos_codigos.keys())
+            elif codigos_selecionados:
+                output_pdf = Funções().gerar_pdf(codigos_selecionados)
+            else:
+                st.warning("Selecione ao menos um produto para gerar o catálogo.")
+            
+            if output_pdf:
+                with open(output_pdf, "rb") as f:
+                    st.download_button("Baixar Catálogo PDF", f, file_name="Catalogo_Aracatuba.pdf")
+    
+    
+    
+    def cadastrar_catalogo(self):
+        st.subheader('Faça o Upload da Imagem')
+        uploaded_file = st.file_uploader("Escolha uma imagem", type=["jpg", "jpeg", "png"])
+        self.nome_produto = st.text_input("Nome Produto")
+        self.codigo_produto = st.text_input("Código Produto")
+        self.fornecedor_produto = st.selectbox("Fornecedor", ["ÂNCORA"])
+        self.preco_produto = st.number_input("Preço Produto")
+        #st.write(f"Preço sugerido {self.preco_produto*1.60}")
+        #st.write(f"Preço original {self.preco_produto/1.60}")
+        self.tipo_material = st.selectbox("Tipo de Máterial", ["Utilidades do Lar", "Material Elétrico"])
+        if uploaded_file is not None:
+            image = Image.open(uploaded_file)
+            Funções().display_image(image, 'Imagem carregada')
+
+            buffer = BytesIO()
+            image.save(buffer, format='PNG')
+            buffer.seek(0)
+
+            filename = uploaded_file.name
+
+            if st.button('Fazer upload para o S3'):
+                url = Funções().upload_image_to_s3(buffer, filename)
+                if url:
+                    self.url_imagem = url
+                    st.success(f'Imagem enviada com sucesso! URL: {url}')
+                    st.write(f'[Clique aqui para ver a imagem]({url})')
+                else:
+                    st.error("Falha no upload da imagem.")
+        
+    
 
     @st.cache_data
     def Buscar_dados(_self):

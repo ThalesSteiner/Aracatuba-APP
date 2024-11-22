@@ -3,6 +3,8 @@ from boto3.dynamodb.conditions import Key, Attr
 import requests
 import json
 import streamlit as st
+from io import BytesIO
+from PIL import Image
 
 class AWS:
     def __init__(self):
@@ -31,6 +33,20 @@ class AWS:
         # Conectar ao DynamoDB usando as credenciais e a região fornecidas
         self.dynamodb = boto3.client(
             'dynamodb',
+            aws_access_key_id  = aws_access_key_id,
+            aws_secret_access_key  = aws_secret_access_key,
+            region_name=region_name
+        )
+    
+    def aws_conexão_s3(self):
+        st.session_state.user_info.get("aws_secret_access_key", "")
+        aws_access_key_id = st.session_state.user_info.get("aws_access_key_id", "")
+        aws_secret_access_key = st.session_state.user_info.get("aws_secret_access_key", "")
+        region_name = 'us-east-1' 
+
+        # Conectar ao DynamoDB usando as credenciais e a região fornecidas
+        self.dynamodb = boto3.client(
+            's3',
             aws_access_key_id  = aws_access_key_id,
             aws_secret_access_key  = aws_secret_access_key,
             region_name=region_name
@@ -384,3 +400,23 @@ class AWS:
             Key={"Nome": {"S": Loja}}
         )
         return response["Item"]["Pedidos"]
+    
+    
+    def buscar_produtos_catalogo(self):
+        self.aws_conexão()
+        self.table = self.dynamodb.Table('Produtos_Catalogo')
+        response = self.table.scan()
+        return response['Items']
+    
+    def Cadastrar_produto_dynamodb(self,  Produto):
+        self.aws_conexão()
+        try:
+            table = self.dynamodb.Table("Produtos_Catalogo")
+            response = table.put_item(
+                Item=Produto
+            )
+            print(f"Produto cadastrado com sucesso!")
+        except Exception as e:
+            print(f"Erro ao cadastrar cliente: {e}")
+    
+    
