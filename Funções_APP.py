@@ -9,6 +9,7 @@ from PyPDF2 import PdfMerger
 from fpdf import FPDF
 from io import BytesIO
 from PIL import Image
+from openpyxl import load_workbook
 
 
 class Funções:
@@ -164,3 +165,57 @@ class Funções:
 
     def display_image(self, image, caption):
         st.image(image, caption=caption)
+        
+        
+    def Gerar_comprovante_utilidades(self, df):
+        # Remove colunas desnecessárias
+        df = df.drop(columns=["Fornecedor", "Nome Produto", "Tipo Material"])
+        
+        # Lê a planilha de referência
+        df2 = pd.read_excel("Planilha referencia utilidades.xlsx")
+        
+        linha, pagina = 0, 0
+        unidades_total = preco_total = 0
+        valor_pagina = [0, 0]
+        quantidade_pagina = [0, 0]
+
+        for _, row in df.iterrows():
+            cod, quantidade, valor = row['Codigo'], float(row['Unidades']), float(row['Valor Produto'])
+            
+            # Gerencia troca de página
+            if linha == 44:
+                df2.iloc[linha, pagina * 6 + 1] = quantidade_pagina[pagina]
+                df2.iloc[linha, pagina * 6 + 2] = valor_pagina[pagina]
+                linha, pagina = 0, pagina + 1
+
+            # Define colunas baseadas na página e preenche dados
+            col_base = pagina * 6
+            df2.iloc[linha + 1, col_base:col_base + 4] = [cod, quantidade, valor, f"{quantidade * valor:.2f}"]
+
+            # Atualiza totais
+            unidades_total += quantidade
+            preco_total += quantidade * valor
+            quantidade_pagina[pagina] += quantidade
+            valor_pagina[pagina] += quantidade * valor
+
+            linha += 1
+
+        # Salva totais
+        df2.iloc[48, 5] = unidades_total
+        df2.iloc[49, 5] = preco_total
+        df2.iloc[45, [1, 3]] = [quantidade_pagina[0], valor_pagina[0]]
+        df2.iloc[45, [7, 9]] = [quantidade_pagina[1], valor_pagina[1]]
+
+        # Atualiza planilha de referência
+        ref_wb = load_workbook("Planilha referencia utilidades.xlsx")
+        ref_ws = ref_wb.active
+
+        for row_idx, row in enumerate(df2.itertuples(index=False), start=2):
+            for col_idx, value in enumerate(row, start=1):
+                ref_ws.cell(row=row_idx, column=col_idx, value=value)
+
+        ref_wb.save("Nota Final utilidades.xlsx")
+        
+        return "Nota Final utilidades.xlsx"
+
+    

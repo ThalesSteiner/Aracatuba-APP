@@ -537,7 +537,6 @@ class MultiplasTelas:
             except:
                 st.warning("Erro ao buscar ID")
                         
-       
 
     def Data_hora(self):
         try:
@@ -582,7 +581,6 @@ class MultiplasTelas:
                     pedidos.append(dic)
 
         return pedidos
-
 
 
     def Dashboard(self):
@@ -723,8 +721,7 @@ class MultiplasTelas:
         st.success("Estoque atualizado")
         time.sleep(2)
         st.rerun()
-    
-        
+     
     
     def Estoque(self):
         tab1, tab2 = st.tabs(["Estoque cartela", "Estoque caixa"])
@@ -990,6 +987,8 @@ class MultiplasTelas:
                 lista_navegação.append(st.Page(self.Gerar_catalogo, title="🗄 Catalogo"))
             elif pagina_selecionada == "Cadastrar Catalogo":
                 lista_navegação.append(st.Page(self.cadastrar_catalogo, title="🗃 Cadastrar Catalogo"))
+            elif pagina_selecionada == "Utilidades":
+                lista_navegação.append(st.Page(self.Cadastrar_pedido_utilidades, title="Utilidades"))
         
         pg = st.navigation({"Aracatuba parafusos":lista_navegação}, position="sidebar")
         pg.run()
@@ -1050,9 +1049,33 @@ class MultiplasTelas:
                     st.write(f'[Clique aqui para ver a imagem]({url})')
                 else:
                     st.error("Falha no upload da imagem.")
-        
     
+    
+    def Cadastrar_pedido_utilidades(self):
+        st.title("Gerar Nota Utilidades")
+        df = self.Carregar_dados()
+        df2 = st.data_editor(df)
+        if st.button("Enviar"):
+            df_enviar = df2[df2['Unidades'] != 0]
+            out_put_nota_utilidades = Funções().Gerar_comprovante_utilidades(df_enviar)
+            with open(out_put_nota_utilidades, "rb") as f:
+                st.download_button("Baixar Nota utilidades", f, file_name="Nota Final utilidades.xlsx")
 
+    @st.cache_data
+    def Carregar_dados(_self):
+        Pedidos = AWS().buscar_produtos_catalogo()
+        df = pd.DataFrame(Pedidos).drop(columns=["link_imagem"])
+        df['Unidades'] = 0
+        df['Numero'] = df['Codigo'].str.extract(r'(\d+)$')
+        df['Numero'] = df['Numero'].astype('Int64')  # Usando o tipo Int64 que permite NaN
+        df_sorted = df.sort_values(by="Numero", ascending=True)
+        df_sorted = df_sorted.drop(columns=["Numero"])
+        df_sorted.rename(columns={'Nome_produto': 'Nome Produto',
+                                  "Tipo_material": "Tipo Material",
+                                  "Valor_produto": "Valor Produto"}, inplace=True)
+        return df_sorted
+        
+        
     @st.cache_data
     def Buscar_dados(_self):
         df = pd.read_excel("Mapa novas lojas.xlsx")
