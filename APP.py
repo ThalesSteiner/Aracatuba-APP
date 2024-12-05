@@ -28,7 +28,7 @@ from PIL import Image
 
 class MultiplasTelas:
     def __init__(self):
-        self.tamanho_max_cartela = 133
+        self.tamanho_max_cartela = 136
         self.meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
         self.df_pedidos = False
         self.empresas =  ["Nenhuma"] + self.buscar_clientes()
@@ -434,24 +434,30 @@ class MultiplasTelas:
                         lista_cartela = [0 for _ in range(self.tamanho_max_cartela)]
                         for cartela, quantidade in pedido_dic.items():
                             lista_cartela[int(cartela.split(" ")[1]) - 1] = int(quantidade)
+                        
 
                         #Colunas com o somatorio
-                        lista_1 = lista_cartela[:34] + [sum(lista_cartela[:34])]
-                        lista_2 = lista_cartela[34:68] + [sum(lista_cartela[34:68])]
-                        lista_3 = lista_cartela[68:102] + [sum(lista_cartela[68:102])]
-                        lista_4 = lista_cartela[102:] + [sum(lista_cartela[102:])]
-
+                        lista_1 = lista_cartela[:37] + [sum(lista_cartela[:37])]
+                        lista_2 = lista_cartela[37:74] + [sum(lista_cartela[37:74])]
+                        lista_3 = lista_cartela[74:111] + [sum(lista_cartela[74:111])]
+                        lista_4 = lista_cartela[111:]
+                        valor_ultima_coluna = sum(lista_cartela[111:])
+                        
                         quantidade_p_aco.append(sum(lista_cartela[128:]))
                         
-                        df.iloc[4:39, lista_index[i][0]] = lista_1
-                        df.iloc[4:39, lista_index[i][1]] = lista_2
-                        df.iloc[4:39, lista_index[i][2]] = lista_3
+                        df.iloc[4:42, lista_index[i][0]] = lista_1
+                        df.iloc[4:42, lista_index[i][1]] = lista_2
+                        df.iloc[4:42, lista_index[i][2]] = lista_3
 
-                        df.iloc[4:35, lista_index[i][3]] = lista_4[:-1]
+                        
+                        
+                        df.iloc[4:29, lista_index[i][3]] = lista_4
 
+                        
                         # Adiciona a soma na última coluna que é diferente das demais
-                        df.iloc[38, lista_index[i][3]] = lista_4[-1]
+                        df.iloc[41, lista_index[i][3]] = valor_ultima_coluna
 
+                        
                         quantidade_p.append(sum(lista_cartela))
 
                         i += 1
@@ -466,26 +472,30 @@ class MultiplasTelas:
                 df.iloc[2, 10] = lojas[1]
                 df.iloc[2, 19] = lojas[2]
 
-                df.iloc[42, 0] = f"{preço_p[0]}"
-                df.iloc[42, 9] = f"{preço_p[1]}"
-                df.iloc[42, 18] = f"{preço_p[2]}"
-
-                df.iloc[42, 3] = quantidade_p[0]
-                df.iloc[42, 12] = quantidade_p[1]
-                df.iloc[42, 21] = quantidade_p[2]
+                print(df.shape)
+                df.iloc[44, 0] = f"{preço_p[0]}"
+                df.iloc[44, 9] = f"{preço_p[1]}"
+                df.iloc[44, 18] = f"{preço_p[2]}"
+                
+                
+                
+                df.iloc[44, 3] = quantidade_p[0]
+                df.iloc[44, 12] = quantidade_p[1]
+                df.iloc[44, 21] = quantidade_p[2]
+                print("ERRO")
 
                 try:
-                    df.iloc[42, 6] = ((float(quantidade_p[0]) - float(quantidade_p_aco[0])) * float(preço_p[0])) + (float(quantidade_p_aco[0]) * float(preço_p_aco[0]))
+                    df.iloc[44, 6] = ((float(quantidade_p[0]) - float(quantidade_p_aco[0])) * float(preço_p[0])) + (float(quantidade_p_aco[0]) * float(preço_p_aco[0]))
                 except:
                     pass
 
                 try:
-                    df.iloc[42, 15] = ((float(quantidade_p[1]) - float(quantidade_p_aco[1])) * float(preço_p[1])) + (float(quantidade_p_aco[1]) * float(preço_p_aco[1]))
+                    df.iloc[44, 15] = ((float(quantidade_p[1]) - float(quantidade_p_aco[1])) * float(preço_p[1])) + (float(quantidade_p_aco[1]) * float(preço_p_aco[1]))
                 except:
                     pass
 
                 try:
-                    df.iloc[42, 24] = ((float(quantidade_p[2]) - float(quantidade_p_aco[2])) * float(preço_p[2])) + (float(quantidade_p_aco[2]) * float(preço_p_aco[2]))
+                    df.iloc[44, 24] = ((float(quantidade_p[2]) - float(quantidade_p_aco[2])) * float(preço_p[2])) + (float(quantidade_p_aco[2]) * float(preço_p_aco[2]))
                 except:
                     pass
 
@@ -534,8 +544,8 @@ class MultiplasTelas:
                         file_name=f"Lista dos pedidos ID: {Id1} {Id2} {Id3} .xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
-            except:
-                st.warning("Erro ao buscar ID")
+            except Exception as e:
+                st.warning(f"Erro ao processar os dados: {e}")
                         
 
     def Data_hora(self):
