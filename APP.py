@@ -998,7 +998,7 @@ class MultiplasTelas:
             elif pagina_selecionada == "Cadastrar Catalogo":
                 lista_navegação.append(st.Page(self.cadastrar_catalogo, title="🗃 Cadastrar Catalogo"))
             elif pagina_selecionada == "Utilidades":
-                lista_navegação.append(st.Page(self.Cadastrar_pedido_utilidades, title="Utilidades"))
+                lista_navegação.append(st.Page(self.Cadastrar_pedido_utilidades, title="Gerar Nota Utilidades"))
         
         pg = st.navigation({"Aracatuba parafusos":lista_navegação}, position="sidebar")
         pg.run()
