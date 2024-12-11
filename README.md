@@ -1,4 +1,4 @@
-# Aracatuba Parafusos 🔨
+# Documentação base 🔨
 
 Aplicação desenvolvida com **Streamlit** para gerenciamento de acessos, login, e telas personalizadas baseadas em permissões.
 
