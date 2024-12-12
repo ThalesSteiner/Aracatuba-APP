@@ -990,9 +990,9 @@ class MultiplasTelas:
             elif pagina_selecionada == "Dashboard":
                 lista_navegação.append(st.Page(self.Dashboard, title="📈 Dashboard"))
             elif pagina_selecionada == "Rotas":
-                lista_navegação.append(st.Page(self.Rotas, title="🚚 Rotas"))
+                lista_navegação.append(st.Page(self.Rotas, title="🚚 Rotas clientes da Loja"))
             elif pagina_selecionada == "Rotas clientes":
-                lista_navegação.append(st.Page(self.Rotas2, title="🚚 Rotas clientes"))
+                lista_navegação.append(st.Page(self.Rotas2, title="🚚 Rotas clientes NOVOS"))
             elif pagina_selecionada == "Catalogo":
                 lista_navegação.append(st.Page(self.Gerar_catalogo, title="🗄 Catalogo"))
             elif pagina_selecionada == "Cadastrar Catalogo":
