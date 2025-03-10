@@ -321,7 +321,7 @@ class MultiplasTelas:
         loja = st.selectbox("loja", self.empresas)        
         data = st.date_input("Data do Pedido", format="DD/MM/YYYY")
         venda = st.radio("Forma de Venda", ["Consignado", "Venda"])
-        valor_cartela = st.number_input("Valor da Cartela", 2)
+        valor_cartela = st.number_input("Valor da Cartela", value=2.3, step=0.01)
         
         valor_cartela_aço = valor_cartela
         #valor_cartela_aço = st.number_input("Valor da Cartela Aço", 3.5)
