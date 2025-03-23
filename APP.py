@@ -1064,34 +1064,47 @@ class MultiplasTelas:
 
         with tab2:
             produtos = self.produto_utiliar()
-            codigos = [item["Codigo"] for item in produtos]
+            
+            # Pegar códigos únicos
+            codigos_unicos = list(set([item["Codigo"] for item in produtos]))
+            codigos_unicos.sort()
 
-            codigo_selecionado = st.selectbox("Selecione o produto pelo código", codigos)
+            # Primeiro selectbox com os códigos
+            codigo_selecionado = st.selectbox("Selecione o código do produto", codigos_unicos)
 
-            produto = next((item for item in produtos if item["Codigo"] == codigo_selecionado), None)
+            # Filtrar produtos com esse código
+            produtos_mesmo_codigo = [item for item in produtos if item["Codigo"] == codigo_selecionado]
+
+            # Se houver mais de um produto com esse código
+            if len(produtos_mesmo_codigo) > 1:
+                nomes_possiveis = [item["Nome_produto"] for item in produtos_mesmo_codigo]
+                nome_escolhido = st.selectbox("Selecione o nome do produto", nomes_possiveis)
+                produto = next((item for item in produtos_mesmo_codigo if item["Nome_produto"] == nome_escolhido), None)
+            else:
+                produto = produtos_mesmo_codigo[0]
+
             if produto:
                 st.markdown(f"### Editar Produto - {codigo_selecionado}")
-                
+
                 novo_nome = st.text_input(f"Nome do Produto ({codigo_selecionado})", value=produto["Nome_produto"], key=f"nome_{codigo_selecionado}")
                 novo_valor = st.number_input(f"Valor do Produto ({codigo_selecionado})", value=float(produto["Valor_produto"]), key=f"valor_{codigo_selecionado}")
                 novo_tipo = st.text_input(f"Tipo de Material ({codigo_selecionado})", value=produto["Tipo_material"], key=f"tipo_{codigo_selecionado}")
                 novo_link = st.text_input(f"Link da Imagem ({codigo_selecionado})", value=produto["link_imagem"], key=f"link_{codigo_selecionado}")
-                fornecedor = produto.get("Fornecedor", "N/A")  # Padrão para Fornecedor
+                fornecedor = produto.get("Fornecedor", "N/A")
 
-                if st.button(f"Salvar alterações para {codigo_selecionado}"):
-                    # Montar novo dicionário com os dados atualizados
+                if st.button(f"Salvar alterações para {codigo_selecionado} - {produto['Nome_produto']}"):
                     produto_atualizado = {
                         "Codigo": codigo_selecionado,
                         "Nome_produto": novo_nome,
-                        "Valor_produto": str(novo_valor),  # DynamoDB espera string ou número
+                        "Valor_produto": str(novo_valor),
                         "Tipo_material": novo_tipo,
                         "link_imagem": novo_link,
                         "Fornecedor": fornecedor
                     }
 
-                    # Chamar a função para salvar no DynamoDB
                     AWS().Cadastrar_produto_dynamodb(produto_atualizado)
-                    st.success(f"Produto {codigo_selecionado} atualizado e cadastrado no DynamoDB!")
+                    st.success(f"Produto {codigo_selecionado} - {novo_nome} atualizado e cadastrado no DynamoDB!")
+
 
 
 
