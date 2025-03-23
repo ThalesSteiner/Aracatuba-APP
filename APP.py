@@ -321,7 +321,7 @@ class MultiplasTelas:
         loja = st.selectbox("loja", self.empresas)        
         data = st.date_input("Data do Pedido", format="DD/MM/YYYY")
         venda = st.radio("Forma de Venda", ["Consignado", "Venda"])
-        valor_cartela = st.number_input("Valor da Cartela", value=2.3, step=0.01)
+        valor_cartela = st.number_input("Valor da Cartela", 2)
         
         valor_cartela_aço = valor_cartela
         #valor_cartela_aço = st.number_input("Valor da Cartela Aço", 3.5)
@@ -990,9 +990,9 @@ class MultiplasTelas:
             elif pagina_selecionada == "Dashboard":
                 lista_navegação.append(st.Page(self.Dashboard, title="📈 Dashboard"))
             elif pagina_selecionada == "Rotas":
-                lista_navegação.append(st.Page(self.Rotas, title="🚚 Rotas clientes da Loja"))
+                lista_navegação.append(st.Page(self.Rotas, title="🚚 Rotas"))
             elif pagina_selecionada == "Rotas clientes":
-                lista_navegação.append(st.Page(self.Rotas2, title="🚚 Rotas clientes NOVOS"))
+                lista_navegação.append(st.Page(self.Rotas2, title="🚚 Rotas clientes"))
             elif pagina_selecionada == "Catalogo":
                 lista_navegação.append(st.Page(self.Gerar_catalogo, title="🗄 Catalogo"))
             elif pagina_selecionada == "Cadastrar Catalogo":
@@ -1032,34 +1032,69 @@ class MultiplasTelas:
     
     
     def cadastrar_catalogo(self):
-        st.subheader('Faça o Upload da Imagem')
-        uploaded_file = st.file_uploader("Escolha uma imagem", type=["jpg", "jpeg", "png"])
-        self.nome_produto = st.text_input("Nome Produto")
-        self.codigo_produto = st.text_input("Código Produto")
-        self.fornecedor_produto = st.selectbox("Fornecedor", ["ÂNCORA"])
-        self.preco_produto = st.number_input("Preço Produto")
-        #st.write(f"Preço sugerido {self.preco_produto*1.60}")
-        #st.write(f"Preço original {self.preco_produto/1.60}")
-        self.tipo_material = st.selectbox("Tipo de Máterial", ["Utilidades do Lar", "Material Elétrico"])
-        if uploaded_file is not None:
-            image = Image.open(uploaded_file)
-            Funções().display_image(image, 'Imagem carregada')
+        tab1 , tab2 = st.tabs(["Cadastro", "Atualizar"])
+        with tab1:
+            st.subheader('Faça o Upload da Imagem')
+            uploaded_file = st.file_uploader("Escolha uma imagem", type=["jpg", "jpeg", "png"])
+            self.nome_produto = st.text_input("Nome Produto")
+            self.codigo_produto = st.text_input("Código Produto")
+            self.fornecedor_produto = st.selectbox("Fornecedor", ["ÂNCORA"])
+            self.preco_produto = st.number_input("Preço Produto")
+            #st.write(f"Preço sugerido {self.preco_produto*1.60}")
+            #st.write(f"Preço original {self.preco_produto/1.60}")
+            self.tipo_material = st.selectbox("Tipo de Máterial", ["Utilidades do Lar", "Material Elétrico"])
+            if uploaded_file is not None:
+                image = Image.open(uploaded_file)
+                Funções().display_image(image, 'Imagem carregada')
 
-            buffer = BytesIO()
-            image.save(buffer, format='PNG')
-            buffer.seek(0)
+                buffer = BytesIO()
+                image.save(buffer, format='PNG')
+                buffer.seek(0)
 
-            filename = uploaded_file.name
+                filename = uploaded_file.name
 
-            if st.button('Fazer upload para o S3'):
-                url = Funções().upload_image_to_s3(buffer, filename)
-                if url:
-                    self.url_imagem = url
-                    st.success(f'Imagem enviada com sucesso! URL: {url}')
-                    st.write(f'[Clique aqui para ver a imagem]({url})')
-                else:
-                    st.error("Falha no upload da imagem.")
-    
+                if st.button('Fazer upload para o S3'):
+                    url = Funções().upload_image_to_s3(buffer, filename)
+                    if url:
+                        self.url_imagem = url
+                        st.success(f'Imagem enviada com sucesso! URL: {url}')
+                        st.write(f'[Clique aqui para ver a imagem]({url})')
+                    else:
+                        st.error("Falha no upload da imagem.")
+
+        with tab2:
+            produtos = self.produto_utiliar()
+            codigos = [item["Codigo"] for item in produtos]
+
+            codigo_selecionado = st.selectbox("Selecione o produto pelo código", codigos)
+
+            produto = next((item for item in produtos if item["Codigo"] == codigo_selecionado), None)
+            if produto:
+                st.markdown(f"### Editar Produto - {codigo_selecionado}")
+                
+                novo_nome = st.text_input(f"Nome do Produto ({codigo_selecionado})", value=produto["Nome_produto"], key=f"nome_{codigo_selecionado}")
+                novo_valor = st.number_input(f"Valor do Produto ({codigo_selecionado})", value=float(produto["Valor_produto"]), key=f"valor_{codigo_selecionado}")
+                novo_tipo = st.text_input(f"Tipo de Material ({codigo_selecionado})", value=produto["Tipo_material"], key=f"tipo_{codigo_selecionado}")
+                novo_link = st.text_input(f"Link da Imagem ({codigo_selecionado})", value=produto["link_imagem"], key=f"link_{codigo_selecionado}")
+                fornecedor = produto.get("Fornecedor", "N/A")  # Padrão para Fornecedor
+
+                if st.button(f"Salvar alterações para {codigo_selecionado}"):
+                    # Montar novo dicionário com os dados atualizados
+                    produto_atualizado = {
+                        "Codigo": codigo_selecionado,
+                        "Nome_produto": novo_nome,
+                        "Valor_produto": str(novo_valor),  # DynamoDB espera string ou número
+                        "Tipo_material": novo_tipo,
+                        "link_imagem": novo_link,
+                        "Fornecedor": fornecedor
+                    }
+
+                    # Chamar a função para salvar no DynamoDB
+                    AWS().Cadastrar_produto_dynamodb(produto_atualizado)
+                    st.success(f"Produto {codigo_selecionado} atualizado e cadastrado no DynamoDB!")
+
+
+
     
     def Cadastrar_pedido_utilidades(self):
         st.title("Gerar Nota Utilidades")
@@ -1071,6 +1106,10 @@ class MultiplasTelas:
             with open(out_put_nota_utilidades, "rb") as f:
                 st.download_button("Baixar Nota utilidades", f, file_name="Nota Final utilidades.xlsx")
 
+    @st.cache_data
+    def produto_utiliar(_self):
+        return AWS().buscar_produtos_catalogo()
+    
     @st.cache_data
     def Carregar_dados(_self):
         Pedidos = AWS().buscar_produtos_catalogo()
