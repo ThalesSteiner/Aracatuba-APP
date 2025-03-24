@@ -11,3 +11,4 @@ streamlit_folium
 geopy
 PyPDF2
 fpdf
+rich==13.9.4
