@@ -594,125 +594,16 @@ class MultiplasTelas:
 
 
     def Dashboard(self):
-        pedidos = self.gerar_dado(self.empresas)
-        #st.json(pedidos)
-        st.title("Pedidos")
-        tabela_completa = st.toggle('Tabela Completa')
-        my_grid = grid(2,3, vertical_align="bottom")
-        Cidade = my_grid.multiselect("Escolha a Cidade", ["todos", "Rio de janeiro", "São joão de meriti", "Nova Iguaçu"])
-        Bairro = my_grid.multiselect("Escolha a Bairro", ["todos", "Piedade", "Meier", "Madureira"])
-        #Bairro = my_grid.multiselect("Escolha a Bairro", ["todos", "Rota1", "Rota2", "Rota3"])
-        
-        loja = my_grid.multiselect("Escolha as Lojas", ["Todos"] + self.empresas)
-        mês = my_grid.multiselect("Escolha o Mês", ["Todos"] + self.meses)
-        ano = my_grid.multiselect("Escolha o Ano", ["Todos"] + [f"{2017+i}" for i in range(8)])
-
-        
-        if st.button("Pesquisar"):
-            
-            if "Todos" not in loja:
-                pedidos = [pedido for pedido in pedidos if pedido['Loja'] in loja]
-            if "Todos" not in mês:
-                pedidos = [pedido for pedido in pedidos if pedido['Data'].split("-")[0] in mês]
-            if "Todos" not in ano:
-                pedidos = [pedido for pedido in pedidos if pedido['Data'].split("-")[1] in ano]
-                
-            # Inicializa os dicionários
-            itens = self.tamanho_max_cartela
-            dic = {str(i): 0 for i in range(1, itens + 1)}
-            datas_unicas = {}
-            Anos_unicas = {}
-            Mês_unicas = {}
-            Lista_lojas = {}
-            Venda_total_parafusos = {}
-
-            # Itera sobre os pedidos
-            for pedido in pedidos:
-                # Atualiza contagem de parafusos
-                for cartela, quantidade in pedido["Cartela"].items():
-                    dic[cartela] += int(quantidade)
-                    if cartela in Venda_total_parafusos:
-                        Venda_total_parafusos[cartela] += int(quantidade)
-                    else:
-                        Venda_total_parafusos[cartela] = int(quantidade)
-                
-                # Calcula a soma das cartelas
-                cartelas = [int(cartela) for cartela in pedido['Cartela']]
-                soma_cartelas = sum(cartelas)
-                
-                # Atualiza a soma para a data correspondente
-                data = pedido["Data"]
-                if data in datas_unicas:
-                    datas_unicas[data] += soma_cartelas
-                else:
-                    datas_unicas[data] = soma_cartelas
-
-                # Atualiza a soma para o ano correspondente
-                ano = data.split("-")[1]
-                if ano in Anos_unicas:
-                    Anos_unicas[ano] += soma_cartelas
-                else:
-                    Anos_unicas[ano] = soma_cartelas
-
-                # Atualiza a soma para o mês correspondente
-                mes = data.split("-")[0]
-                if mes in Mês_unicas:
-                    Mês_unicas[mes] += soma_cartelas
-                else:
-                    Mês_unicas[mes] = soma_cartelas
-                
-                # Atualiza a soma para a loja correspondente
-                loja = pedido["Loja"]
-                if loja in Lista_lojas:
-                    Lista_lojas[loja] += soma_cartelas
-                else:
-                    Lista_lojas[loja] = soma_cartelas
-
-            # Calcula a média de cada parafuso
-            total_pedidos = len(pedidos)
-            Media_cartela = {cartela: round(quantidade / total_pedidos, 2) for cartela, quantidade in dic.items()}
-            
-            # Converter dados para DataFrame
-            df_cartelas = pd.DataFrame(list(dic.items()), columns=['Cartela', 'Total'])
-            df_datas = pd.DataFrame(list(datas_unicas.items()), columns=['Data', 'Total'])
-            df_anos = pd.DataFrame(list(Anos_unicas.items()), columns=['Ano', 'Total'])
-            df_meses = pd.DataFrame(list(Mês_unicas.items()), columns=['Mês', 'Total'])
-            df_lojas = pd.DataFrame(list(Lista_lojas.items()), columns=['Loja', 'Total'])
-
-            # Criar gráficos
-            fig_cartelas = px.bar(df_cartelas, x='Cartela', y='Total', title='Total de Parafusos por Cartela')
-            fig_datas = px.line(df_datas, x='Data', y='Total', title='Total de Cartelas por Data')
-            fig_anos = px.bar(df_anos, x='Ano', y='Total', title='Total de Cartelas por Ano')
-            fig_meses = px.bar(df_meses, x='Mês', y='Total', title='Total de Cartelas por Mês')
-            fig_lojas = px.bar(df_lojas, x='Loja', y='Total', title='Total de Cartelas por Loja')
-
-            
-            my_grid = grid(4, vertical_align="bottom")
-            
-            # Mostrar gráficos no Streamlit
-            st.title('Análise de Pedidos Simulados')
-
-            st.subheader('Total de Parafusos por Cartela')
-            st.plotly_chart(fig_cartelas)
-
-            st.subheader('Total de Cartelas por Data')
-            st.plotly_chart(fig_datas)
-
-            st.subheader('Total de Cartelas por Ano')
-            st.plotly_chart(fig_anos)
-
-            st.subheader('Total de Cartelas por Mês')
-            st.plotly_chart(fig_meses)
-
-            st.subheader('Total de Cartelas por Loja')
-            st.plotly_chart(fig_lojas)
-            
-            
-            st.dataframe(df_cartelas)
-            st.dataframe(df_datas)
-            st.dataframe(df_anos)
-            st.dataframe(df_meses)
-            st.dataframe(df_lojas)
+        # Importar e executar o dashboard integrado
+        try:
+            from dashboard import main as dashboard_main
+            dashboard_main()
+        except ImportError as e:
+            st.error(f"Erro ao importar o dashboard: {e}")
+            st.info("Verifique se o arquivo dashboard.py está no diretório correto.")
+        except Exception as e:
+            st.error(f"Erro ao executar o dashboard: {e}")
+            st.info("Verifique as credenciais e conexão com o banco de dados.")
         
     
     def atualizar_estoque(self, df, estoque, Id=None):
