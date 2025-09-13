@@ -9,13 +9,14 @@ import plotly.express as px
 import plotly.graph_objects as go
 from Aws_pedidos import AWS
 
-# Configuração da página removida - será definida no arquivo principal
-# st.set_page_config(
-#     page_title="Dashboard de Pedidos",
-#     page_icon="📦",
-#     layout="wide",
-#     initial_sidebar_state="expanded"
-# )
+# Configurações adicionais para performance
+if hasattr(st, 'set_option'):
+    st.set_option('deprecation.showPyplotGlobalUse', False)
+    st.set_option('deprecation.showfileUploaderEncoding', False)
+
+# NOTA: st.set_page_config() deve ser chamado no arquivo principal (app.py)
+# antes de importar este módulo, pois só pode ser chamado uma vez por página
+
 
 # Funções para buscar dados do DynamoDB
 def Buscar_pedidos():
@@ -432,21 +433,19 @@ def main():
     st.sidebar.success("✅ Cache funcionando")
     st.sidebar.success("✅ Conexão DynamoDB")
     
-    # Sistema de cache melhorado
-    @st.cache_data(ttl=1800)  # Cache por 30 minutos
+    # Sistema de cache otimizado para reduzir erros de WebSocket
+    @st.cache_data(ttl=3600, show_spinner=False)  # Cache por 1 hora, sem spinner
     def load_data():
         try:
-            with st.spinner("Carregando pedidos..."):
-                pedidos = Buscar_pedidos()
-            with st.spinner("Carregando clientes..."):
-                clientes = Buscar_Clientes_todos()
+            pedidos = Buscar_pedidos()
+            clientes = Buscar_Clientes_todos()
             return pedidos, clientes
         except Exception as e:
             st.error(f"Erro ao carregar dados: {str(e)}")
             return [], []
     
     # Cache para dados processados
-    @st.cache_data(ttl=1800)
+    @st.cache_data(ttl=3600, show_spinner=False)
     def load_processed_data():
         pedidos, clientes = load_data()
         if pedidos:
@@ -585,10 +584,42 @@ def main():
     
     st.markdown("---")
     
-    # Inicializar DataFrame filtrado
-    df_filtrado = df_pedidos_enriquecidos.copy()
+    # Inicializar DataFrame base (não filtrado)
+    df_base = df_pedidos_enriquecidos.copy()
     
-    # Sistema de Filtros Harmônico e Organizado
+    # Inicializar estado da sessão para controle de filtros
+    if 'filtros_aplicados' not in st.session_state:
+        st.session_state.filtros_aplicados = False
+    if 'df_filtrado_atual' not in st.session_state:
+        st.session_state.df_filtrado_atual = df_base.copy()
+    if 'ultima_aplicacao' not in st.session_state:
+        st.session_state.ultima_aplicacao = 0
+    
+    # Inicializar estado dos filtros para evitar perda de valores
+    if 'loja_selecionada' not in st.session_state:
+        st.session_state.loja_selecionada = []
+    if 'nome_selecionado' not in st.session_state:
+        st.session_state.nome_selecionado = []
+    if 'cpf_cnpj_selecionado' not in st.session_state:
+        st.session_state.cpf_cnpj_selecionado = []
+    if 'representante_selecionado' not in st.session_state:
+        st.session_state.representante_selecionado = []
+    if 'status_selecionado' not in st.session_state:
+        st.session_state.status_selecionado = []
+    if 'tipo_venda_selecionado' not in st.session_state:
+        st.session_state.tipo_venda_selecionado = []
+    if 'data_inicio' not in st.session_state:
+        st.session_state.data_inicio = None
+    if 'data_fim' not in st.session_state:
+        st.session_state.data_fim = None
+    if 'busca_loja' not in st.session_state:
+        st.session_state.busca_loja = ""
+    if 'filtros_avancados' not in st.session_state:
+        st.session_state.filtros_avancados = {}
+    if 'filtros_endereco' not in st.session_state:
+        st.session_state.filtros_endereco = {}
+    
+    # Sistema de Filtros com Botão de Aplicação
     st.markdown("---")
     
     # Cabeçalho principal dos filtros
@@ -598,7 +629,7 @@ def main():
             🔍 Sistema de Filtros Inteligente
         </h2>
         <p style="color: #f0f0f0; text-align: center; margin: 10px 0 0 0; font-size: 16px;">
-            Use os filtros abaixo para encontrar exatamente o que você procura
+            Configure os filtros abaixo e clique em "Aplicar Filtros" para ver os resultados
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -614,171 +645,178 @@ def main():
         
         with col1:
             st.markdown("**🏪 Loja**")
-            if not df_filtrado.empty and 'Loja' in df_filtrado.columns:
-                lojas_disponiveis = sorted(df_filtrado['Loja'].dropna().unique())
+            if not df_base.empty and 'Loja' in df_base.columns:
+                lojas_disponiveis = sorted(df_base['Loja'].dropna().unique())
                 if lojas_disponiveis:
-                    loja_selecionada = st.selectbox(
-                        "Selecione a Loja:",
-                        ["Todas"] + lojas_disponiveis,
-                        key="filtro_loja"
+                    loja_selecionada = st.multiselect(
+                        "Selecione as Lojas:",
+                        lojas_disponiveis,
+                        default=st.session_state.loja_selecionada,
+                        key="filtro_loja",
+                        help="Selecione uma ou mais lojas"
                     )
-                    
-                    if loja_selecionada != "Todas":
-                        df_filtrado = df_filtrado[df_filtrado['Loja'] == loja_selecionada]
+                    st.session_state.loja_selecionada = loja_selecionada
+                else:
+                    loja_selecionada = st.session_state.loja_selecionada
+            else:
+                loja_selecionada = st.session_state.loja_selecionada
     
         with col2:
             st.markdown("**👤 Nome da Loja**")
-            if not df_filtrado.empty and 'Nome' in df_filtrado.columns:
-                nomes_disponiveis = sorted(df_filtrado['Nome'].dropna().unique())
+            if not df_base.empty and 'Nome' in df_base.columns:
+                nomes_disponiveis = sorted(df_base['Nome'].dropna().unique())
                 if nomes_disponiveis:
-                    nome_selecionado = st.selectbox(
-                        "Selecione o Nome:",
-                        ["Todos"] + nomes_disponiveis,
-                        key="filtro_nome"
+                    nome_selecionado = st.multiselect(
+                        "Selecione os Nomes:",
+                        nomes_disponiveis,
+                        default=st.session_state.nome_selecionado,
+                        key="filtro_nome",
+                        help="Selecione um ou mais nomes"
                     )
-                    
-                    if nome_selecionado != "Todos":
-                        df_filtrado = df_filtrado[df_filtrado['Nome'] == nome_selecionado]
+                    st.session_state.nome_selecionado = nome_selecionado
+                else:
+                    nome_selecionado = st.session_state.nome_selecionado
+            else:
+                nome_selecionado = st.session_state.nome_selecionado
         
         with col3:
             st.markdown("**📋 CPF/CNPJ**")
-            if not df_filtrado.empty and 'CPF/CNPJ' in df_filtrado.columns:
-                cpf_cnpjs_disponiveis = sorted(df_filtrado['CPF/CNPJ'].dropna().unique())
+            if not df_base.empty and 'CPF/CNPJ' in df_base.columns:
+                cpf_cnpjs_disponiveis = sorted(df_base['CPF/CNPJ'].dropna().unique())
                 if cpf_cnpjs_disponiveis:
-                    cpf_cnpj_selecionado = st.selectbox(
+                    cpf_cnpj_selecionado = st.multiselect(
                         "Selecione CPF/CNPJ:",
-                        ["Todos"] + cpf_cnpjs_disponiveis,
-                        key="filtro_cpf_cnpj"
+                        cpf_cnpjs_disponiveis,
+                        default=st.session_state.cpf_cnpj_selecionado,
+                        key="filtro_cpf_cnpj",
+                        help="Selecione um ou mais CPF/CNPJ"
                     )
-                    
-                    if cpf_cnpj_selecionado != "Todos":
-                        df_filtrado = df_filtrado[df_filtrado['CPF/CNPJ'] == cpf_cnpj_selecionado]
+                    st.session_state.cpf_cnpj_selecionado = cpf_cnpj_selecionado
+                else:
+                    cpf_cnpj_selecionado = st.session_state.cpf_cnpj_selecionado
+            else:
+                cpf_cnpj_selecionado = st.session_state.cpf_cnpj_selecionado
         
         with col4:
             st.markdown("**👨‍💼 Representante**")
-            if not df_filtrado.empty and 'Representante' in df_filtrado.columns:
-                representantes_disponiveis = sorted(df_filtrado['Representante'].dropna().unique())
+            if not df_base.empty and 'Representante' in df_base.columns:
+                representantes_disponiveis = sorted(df_base['Representante'].dropna().unique())
                 if representantes_disponiveis:
-                    representante_selecionado = st.selectbox(
-                        "Selecione Representante:",
-                        ["Todos"] + representantes_disponiveis,
-                        key="filtro_representante"
+                    representante_selecionado = st.multiselect(
+                        "Selecione Representantes:",
+                        representantes_disponiveis,
+                        default=st.session_state.representante_selecionado,
+                        key="filtro_representante",
+                        help="Selecione um ou mais representantes"
                     )
-                    
-                    if representante_selecionado != "Todos":
-                        df_filtrado = df_filtrado[df_filtrado['Representante'] == representante_selecionado]
+                    st.session_state.representante_selecionado = representante_selecionado
+                else:
+                    representante_selecionado = st.session_state.representante_selecionado
+            else:
+                representante_selecionado = st.session_state.representante_selecionado
         
         # Segunda linha - Filtros de Status e Data
         col5, col6, col7, col8 = st.columns(4)
         
         with col5:
             st.markdown("**📊 Status**")
-            if not df_filtrado.empty and 'Status' in df_filtrado.columns:
-                status_disponiveis = sorted(df_filtrado['Status'].dropna().unique())
+            if not df_base.empty and 'Status' in df_base.columns:
+                status_disponiveis = sorted(df_base['Status'].dropna().unique())
                 if status_disponiveis:
-                    status_selecionado = st.selectbox(
+                    status_selecionado = st.multiselect(
                         "Selecione Status:",
-                        ["Todos"] + status_disponiveis,
-                        key="filtro_status"
+                        status_disponiveis,
+                        default=st.session_state.status_selecionado,
+                        key="filtro_status",
+                        help="Selecione um ou mais status"
                     )
-                    
-                    if status_selecionado != "Todos":
-                        df_filtrado = df_filtrado[df_filtrado['Status'] == status_selecionado]
+                    st.session_state.status_selecionado = status_selecionado
+                else:
+                    status_selecionado = st.session_state.status_selecionado
+            else:
+                status_selecionado = st.session_state.status_selecionado
 
         with col6:
             st.markdown("**💰 Tipo de Venda**")
-            if not df_filtrado.empty and 'Tipo de Venda' in df_filtrado.columns:
-                tipos_venda_disponiveis = sorted(df_filtrado['Tipo de Venda'].dropna().unique())
+            if not df_base.empty and 'Tipo de Venda' in df_base.columns:
+                tipos_venda_disponiveis = sorted(df_base['Tipo de Venda'].dropna().unique())
                 if tipos_venda_disponiveis:
-                    tipo_venda_selecionado = st.selectbox(
-                        "Selecione Tipo:",
-                        ["Todos"] + tipos_venda_disponiveis,
-                        key="filtro_tipo_venda"
+                    tipo_venda_selecionado = st.multiselect(
+                        "Selecione Tipos:",
+                        tipos_venda_disponiveis,
+                        default=st.session_state.tipo_venda_selecionado,
+                        key="filtro_tipo_venda",
+                        help="Selecione um ou mais tipos de venda"
                     )
-                    
-                    if tipo_venda_selecionado != "Todos":
-                        df_filtrado = df_filtrado[df_filtrado['Tipo de Venda'] == tipo_venda_selecionado]
+                    st.session_state.tipo_venda_selecionado = tipo_venda_selecionado
+                else:
+                    tipo_venda_selecionado = st.session_state.tipo_venda_selecionado
+            else:
+                tipo_venda_selecionado = st.session_state.tipo_venda_selecionado
         
         with col7:
             st.markdown("**📅 Período**")
-            if not df_filtrado.empty and 'Data' in df_filtrado.columns:
+            if not df_base.empty and 'Data' in df_base.columns:
                 try:
-                    # Converter coluna de data
-                    df_filtrado['Data'] = pd.to_datetime(df_filtrado['Data'], errors='coerce')
+                    # Converter coluna de data uma única vez
+                    df_base['Data'] = pd.to_datetime(df_base['Data'], errors='coerce')
                     
                     # Obter range de datas disponíveis
-                    data_min = df_filtrado['Data'].min().date()
-                    data_max = df_filtrado['Data'].max().date()
+                    data_min = df_base['Data'].min().date()
+                    data_max = df_base['Data'].max().date()
                     
                     # Filtro de data
                     data_inicio, data_fim = st.date_input(
                         "Selecione o período:",
-                        value=(data_min, data_max),
+                        value=(st.session_state.data_inicio or data_min, st.session_state.data_fim or data_max),
                         min_value=data_min,
                         max_value=data_max,
                         key="filtro_data"
                     )
-                    
-                    # Aplicar filtro de data
-                    if isinstance(data_inicio, date) and isinstance(data_fim, date):
-                        mask_data = (df_filtrado['Data'].dt.date >= data_inicio) & \
-                                   (df_filtrado['Data'].dt.date <= data_fim)
-                        df_filtrado = df_filtrado[mask_data].copy()
+                    st.session_state.data_inicio = data_inicio
+                    st.session_state.data_fim = data_fim
                         
                 except Exception as e:
                     st.warning(f"Erro ao processar datas: {str(e)}")
+                    data_inicio, data_fim = None, None
+            else:
+                data_inicio, data_fim = None, None
         
         with col8:
             st.markdown("**🔍 Busca Inteligente**")
             busca_loja = st.text_input(
                 "Digite qualquer termo:",
+                value=st.session_state.busca_loja,
                 placeholder="Ex: nome da loja, região, telefone...",
                 key="filtro_busca"
             )
-            if busca_loja:
-                # Campos relacionados à loja para busca
-                campos_loja = ['Loja', 'Nome', 'CPF/CNPJ', 'Representante', 'Status', 'Email', 'Telefone_fixo', 'Telefone_whats', 'Telefone_contato']
-                
-                # Criar máscara para busca em todos os campos relacionados à loja
-                mask_loja = pd.Series([False] * len(df_filtrado))
-                
-                for campo in campos_loja:
-                    if campo in df_filtrado.columns:
-                        mask_campo = df_filtrado[campo].astype(str).str.contains(busca_loja, case=False, na=False)
-                        mask_loja = mask_loja | mask_campo
-                
-                df_filtrado = df_filtrado[mask_loja]
-                
-                if len(df_filtrado) > 0:
-                    st.success(f"✅ {len(df_filtrado)} resultado(s) encontrado(s)")
-                else:
-                    st.warning(f"⚠️ Nenhum resultado para '{busca_loja}'")
+            st.session_state.busca_loja = busca_loja
         
         # === SEÇÃO 2: FILTROS AVANÇADOS ===
         st.markdown("---")
         st.markdown("### 🎛️ Filtros Avançados")
         
         # Analisar estrutura dos dados e criar filtros dinâmicos
-        if not df_filtrado.empty:
+        if not df_base.empty:
             # Campos disponíveis para filtro multiselect
             campos_filtro = []
             
             # Adicionar campos básicos
             campos_basicos = ['Loja', 'Nome', 'CPF/CNPJ', 'Representante', 'Status', 'Tipo de Venda', 'Email']
             for campo in campos_basicos:
-                if campo in df_filtrado.columns:
+                if campo in df_base.columns:
                     campos_filtro.append(campo)
             
             # Adicionar campos de endereço se existirem
             campos_endereco = ['uf', 'cidade', 'bairro']
             for campo in campos_endereco:
-                if campo in df_filtrado.columns:
+                if campo in df_base.columns:
                     campos_filtro.append(campo)
             
             # Adicionar campos de telefone se existirem
             campos_telefone = ['Telefone_fixo', 'Telefone_whats', 'Telefone_contato']
             for campo in campos_telefone:
-                if campo in df_filtrado.columns:
+                if campo in df_base.columns:
                     campos_filtro.append(campo)
             
             if campos_filtro:
@@ -786,10 +824,13 @@ def main():
                 num_colunas = min(4, len(campos_filtro))
                 colunas_filtro = st.columns(num_colunas)
                 
+                # Dicionário para armazenar seleções dos filtros avançados
+                filtros_avancados = {}
+                
                 for i, campo in enumerate(campos_filtro[:num_colunas]):
                     with colunas_filtro[i]:
                         # Obter valores únicos para o campo
-                        valores_unicos = df_filtrado[campo].dropna().unique()
+                        valores_unicos = df_base[campo].dropna().unique()
                         valores_unicos = [str(v) for v in valores_unicos if str(v).strip() != '']
                         valores_unicos = sorted(valores_unicos)
                         
@@ -802,11 +843,7 @@ def main():
                                 help=f"Selecione um ou mais valores para filtrar por {campo}",
                                 key=f"multiselect_{campo}"
                             )
-                            
-                            # Aplicar filtro se valores foram selecionados
-                            if valores_selecionados:
-                                mask_campo = df_filtrado[campo].astype(str).isin(valores_selecionados)
-                                df_filtrado = df_filtrado[mask_campo]
+                            filtros_avancados[campo] = valores_selecionados
                 
                 # Se há mais campos, criar uma segunda linha
                 if len(campos_filtro) > num_colunas:
@@ -818,7 +855,7 @@ def main():
                         if i < num_colunas2:  # Verificação de segurança
                             with colunas_filtro2[i]:
                                 # Obter valores únicos para o campo
-                                valores_unicos = df_filtrado[campo].dropna().unique()
+                                valores_unicos = df_base[campo].dropna().unique()
                                 valores_unicos = [str(v) for v in valores_unicos if str(v).strip() != '']
                                 valores_unicos = sorted(valores_unicos)
                                 
@@ -831,24 +868,231 @@ def main():
                                         help=f"Selecione um ou mais valores para filtrar por {campo}",
                                         key=f"multiselect_{campo}_2"
                                     )
-                                    
-                                    # Aplicar filtro se valores foram selecionados
-                                    if valores_selecionados:
-                                        mask_campo = df_filtrado[campo].astype(str).isin(valores_selecionados)
-                                        df_filtrado = df_filtrado[mask_campo]
+                                    filtros_avancados[campo] = valores_selecionados
+        
+        # === SEÇÃO 3: FILTROS DE ENDEREÇO/LOCAL ===
+        st.markdown("---")
+        st.markdown("### 🏠 Filtros de Endereço/Local")
+        st.markdown("*Filtros específicos para campos de endereço extraídos do JSON*")
+        
+        # Inicializar filtros de endereço
+        filtros_endereco = {}
+        
+        if not df_base.empty and 'Endereco' in df_base.columns:
+            # Função para extrair campos do endereço JSON
+            def extrair_campos_endereco(endereco_json):
+                try:
+                    if pd.isna(endereco_json) or endereco_json == '':
+                        return {}
+                    
+                    endereco_dict = None
+                    if isinstance(endereco_json, dict):
+                        endereco_dict = endereco_json
+                    else:
+                        endereco_str = str(endereco_json)
+                        try:
+                            endereco_dict = json.loads(endereco_str)
+                        except:
+                            try:
+                                endereco_str_fixed = endereco_str.replace("'", '"')
+                                endereco_dict = json.loads(endereco_str_fixed)
+                            except:
+                                import ast
+                                try:
+                                    endereco_dict = ast.literal_eval(endereco_str)
+                                except:
+                                    return {}
+                    
+                    if endereco_dict and isinstance(endereco_dict, dict):
+                        return endereco_dict
+                    return {}
+                except:
+                    return {}
+        
+            # Extrair todos os campos de endereço
+            campos_endereco = {}
+            for _, row in df_base.iterrows():
+                endereco_data = extrair_campos_endereco(row['Endereco'])
+                for campo, valor in endereco_data.items():
+                    if campo not in campos_endereco:
+                        campos_endereco[campo] = set()
+                    if valor and str(valor).strip() != '':
+                        campos_endereco[campo].add(str(valor).strip())
+        
+            # Criar filtros para cada campo de endereço
+            if campos_endereco:
+                # Organizar campos em ordem específica
+                ordem_campos = ['Uf', 'Cidade', 'Bairro', 'Rua', 'Numero', 'Cep', 'Complemento']
+                campos_ordenados = []
+                
+                for campo in ordem_campos:
+                    if campo in campos_endereco:
+                        campos_ordenados.append(campo)
+                
+                # Adicionar outros campos que não estão na ordem específica
+                for campo in campos_endereco.keys():
+                    if campo not in campos_ordenados:
+                        campos_ordenados.append(campo)
+                
+                # Criar filtros em colunas
+                num_colunas_endereco = min(4, len(campos_ordenados))
+                colunas_endereco = st.columns(num_colunas_endereco)
+                
+                for i, campo in enumerate(campos_ordenados[:num_colunas_endereco]):
+                    with colunas_endereco[i]:
+                        valores_unicos = sorted(list(campos_endereco[campo]))
+                        
+                        if valores_unicos:
+                            # Criar multiselect para o campo
+                            valores_selecionados = st.multiselect(
+                                f"**{campo}:**",
+                                options=valores_unicos,
+                                default=[],
+                                help=f"Selecione um ou mais valores para filtrar por {campo} do endereço",
+                                key=f"filtro_endereco_{campo}"
+                            )
+                            filtros_endereco[campo] = valores_selecionados
+                
+                # Se há mais campos, criar uma segunda linha
+                if len(campos_ordenados) > num_colunas_endereco:
+                    campos_restantes_endereco = campos_ordenados[num_colunas_endereco:]
+                    num_colunas_endereco2 = min(4, len(campos_restantes_endereco))
+                    colunas_endereco2 = st.columns(num_colunas_endereco2)
+                    
+                    for i, campo in enumerate(campos_restantes_endereco):
+                        if i < num_colunas_endereco2:
+                            with colunas_endereco2[i]:
+                                valores_unicos = sorted(list(campos_endereco[campo]))
+                                
+                                if valores_unicos:
+                                    # Criar multiselect para o campo
+                                    valores_selecionados = st.multiselect(
+                                        f"**{campo}:**",
+                                        options=valores_unicos,
+                                        default=[],
+                                        help=f"Selecione um ou mais valores para filtrar por {campo} do endereço",
+                                        key=f"filtro_endereco_{campo}_2"
+                                    )
+                                    filtros_endereco[campo] = valores_selecionados
+            else:
+                st.markdown("""
+                <div style="background: linear-gradient(90deg, #9E9E9E 0%, #757575 100%); padding: 12px; border-radius: 6px; margin: 10px 0;">
+                    <p style="color: white; margin: 0; text-align: center; font-weight: bold;">
+                        🏠 Nenhum campo de endereço encontrado nos dados
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="background: linear-gradient(90deg, #9E9E9E 0%, #757575 100%); padding: 12px; border-radius: 6px; margin: 10px 0;">
+                <p style="color: white; margin: 0; text-align: center; font-weight: bold;">
+                    🏠 Campo 'Endereco' não encontrado nos dados
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # === BOTÃO DE APLICAÇÃO DE FILTROS ===
+        # (Movido para o final de todos os filtros)
+        
+        # Função para aplicar todos os filtros
+        def aplicar_todos_filtros(df_base, loja_sel, nome_sel, cpf_cnpj_sel, representante_sel, 
+                                status_sel, tipo_venda_sel, data_inicio, data_fim, busca_texto, 
+                                filtros_avancados, filtros_endereco):
+            """Aplica todos os filtros selecionados ao DataFrame base"""
+            df_filtrado = df_base.copy()
+            
+            # Filtro de Loja
+            if loja_sel:
+                df_filtrado = df_filtrado[df_filtrado['Loja'].isin(loja_sel)]
+            
+            # Filtro de Nome
+            if nome_sel:
+                df_filtrado = df_filtrado[df_filtrado['Nome'].isin(nome_sel)]
+            
+            # Filtro de CPF/CNPJ
+            if cpf_cnpj_sel:
+                df_filtrado = df_filtrado[df_filtrado['CPF/CNPJ'].isin(cpf_cnpj_sel)]
+            
+            # Filtro de Representante
+            if representante_sel:
+                df_filtrado = df_filtrado[df_filtrado['Representante'].isin(representante_sel)]
+            
+            # Filtro de Status
+            if status_sel:
+                df_filtrado = df_filtrado[df_filtrado['Status'].isin(status_sel)]
+            
+            # Filtro de Tipo de Venda
+            if tipo_venda_sel:
+                df_filtrado = df_filtrado[df_filtrado['Tipo de Venda'].isin(tipo_venda_sel)]
+            
+            # Filtro de Data
+            if data_inicio and data_fim and 'Data' in df_filtrado.columns:
+                try:
+                    df_filtrado['Data'] = pd.to_datetime(df_filtrado['Data'], errors='coerce')
+                    mask_data = (df_filtrado['Data'].dt.date >= data_inicio) & \
+                               (df_filtrado['Data'].dt.date <= data_fim)
+                    df_filtrado = df_filtrado[mask_data]
+                except Exception as e:
+                    st.warning(f"Erro ao aplicar filtro de data: {str(e)}")
+            
+            # Filtro de Busca Inteligente
+            if busca_texto:
+                campos_loja = ['Loja', 'Nome', 'CPF/CNPJ', 'Representante', 'Status', 'Email', 'Telefone_fixo', 'Telefone_whats', 'Telefone_contato']
+                mask_loja = pd.Series([False] * len(df_filtrado))
+                
+                for campo in campos_loja:
+                    if campo in df_filtrado.columns:
+                        mask_campo = df_filtrado[campo].astype(str).str.contains(busca_texto, case=False, na=False)
+                        mask_loja = mask_loja | mask_campo
+                
+                df_filtrado = df_filtrado[mask_loja]
+            
+            # Filtros Avançados
+            for campo, valores in filtros_avancados.items():
+                if valores and campo in df_filtrado.columns:
+                    mask_campo = df_filtrado[campo].astype(str).isin(valores)
+                    df_filtrado = df_filtrado[mask_campo]
+            
+            # Filtros de Endereço
+            for campo, valores in filtros_endereco.items():
+                if valores and 'Endereco' in df_filtrado.columns:
+                    mask_endereco = []
+                    
+                    for idx, row in df_filtrado.iterrows():
+                        endereco_data = extrair_campos_endereco(row['Endereco'])
+                        if campo in endereco_data:
+                            valor_campo = str(endereco_data[campo]).strip()
+                            if valor_campo in valores:
+                                mask_endereco.append(True)
+                            else:
+                                mask_endereco.append(False)
+                        else:
+                            mask_endereco.append(False)
+                    
+                    # Converter para Series e aplicar filtro
+                    mask_series = pd.Series(mask_endereco, index=df_filtrado.index)
+                    df_filtrado = df_filtrado[mask_series]
+            
+            return df_filtrado
+        
+        # Usar dados filtrados da sessão ou dados base
+        if 'df_filtrado' in st.session_state:
+            df_filtrado = st.session_state.df_filtrado
+        else:
+            df_filtrado = df_base.copy()
         
         # === RESUMO DOS FILTROS ===
         st.markdown("---")
         
         # Container para resumo dos filtros
-        if len(df_filtrado) != len(df_pedidos_enriquecidos):
-            st.markdown(f"""
+        if len(df_filtrado) != len(df_base):
+                st.markdown(f"""
             <div style="background: linear-gradient(90deg, #4CAF50 0%, #45a049 100%); padding: 15px; border-radius: 8px; margin: 10px 0;">
                 <h4 style="color: white; margin: 0; text-align: center;">
-                    🎯 Filtros Ativos: {len(df_filtrado)} de {len(df_pedidos_enriquecidos)} registros
+                    🎯 Filtros Ativos: {len(df_filtrado)} de {len(df_base)} registros
                 </h4>
-            </div>
-            """, unsafe_allow_html=True)
+                </div>
+                """, unsafe_allow_html=True)
         else:
             st.markdown(f"""
             <div style="background: linear-gradient(90deg, #2196F3 0%, #1976D2 100%); padding: 15px; border-radius: 8px; margin: 10px 0;">
@@ -858,168 +1102,169 @@ def main():
             </div>
             """, unsafe_allow_html=True)
     
-    # === SEÇÃO 3: FILTROS DE ENDEREÇO ===
+    # === RESUMO DOS FILTROS CONFIGURADOS ===
     st.markdown("---")
-    st.markdown("### 🏠 Filtros de Endereço")
-    st.markdown("*Filtros específicos para campos de endereço extraídos do JSON*")
+    st.markdown("### 📋 Resumo dos Filtros Configurados")
     
-    if not df_filtrado.empty and 'Endereco' in df_filtrado.columns:
-        # Função para extrair campos do endereço JSON
-        def extrair_campos_endereco(endereco_json):
-            try:
-                if pd.isna(endereco_json) or endereco_json == '':
-                    return {}
-                
-                endereco_dict = None
-                if isinstance(endereco_json, dict):
-                    endereco_dict = endereco_json
-                else:
-                    endereco_str = str(endereco_json)
-                    try:
-                        endereco_dict = json.loads(endereco_str)
-                    except:
-                        try:
-                            endereco_str_fixed = endereco_str.replace("'", '"')
-                            endereco_dict = json.loads(endereco_str_fixed)
-                        except:
-                            import ast
-                            try:
-                                endereco_dict = ast.literal_eval(endereco_str)
-                            except:
-                                return {}
-                
-                if endereco_dict and isinstance(endereco_dict, dict):
-                    return endereco_dict
-                return {}
-            except:
-                return {}
+    # Criar resumo dos filtros selecionados
+    filtros_configurados = []
+    
+    if loja_selecionada:
+        filtros_configurados.append(f"🏪 **Lojas:** {', '.join(loja_selecionada)}")
+    
+    if nome_selecionado:
+        filtros_configurados.append(f"👤 **Nomes:** {', '.join(nome_selecionado)}")
+    
+    if cpf_cnpj_selecionado:
+        filtros_configurados.append(f"📋 **CPF/CNPJ:** {', '.join(cpf_cnpj_selecionado)}")
+    
+    if representante_selecionado:
+        filtros_configurados.append(f"👨‍💼 **Representantes:** {', '.join(representante_selecionado)}")
+    
+    if status_selecionado:
+        filtros_configurados.append(f"📊 **Status:** {', '.join(status_selecionado)}")
+    
+    if tipo_venda_selecionado:
+        filtros_configurados.append(f"💰 **Tipos de Venda:** {', '.join(tipo_venda_selecionado)}")
+    
+    if data_inicio and data_fim:
+        filtros_configurados.append(f"📅 **Período:** {data_inicio} até {data_fim}")
+    
+    if busca_loja:
+        filtros_configurados.append(f"🔍 **Busca:** '{busca_loja}'")
+    
+    # Filtros avançados
+    for campo, valores in filtros_avancados.items():
+        if valores:
+            filtros_configurados.append(f"🎛️ **{campo}:** {', '.join(valores)}")
+    
+    # Filtros de endereço
+    for campo, valores in filtros_endereco.items():
+        if valores:
+            filtros_configurados.append(f"🏠 **{campo}:** {', '.join(valores)}")
+    
+    if filtros_configurados:
+        st.markdown(f"""
+        <div style="background: linear-gradient(90deg, #FF9800 0%, #F57C00 100%); padding: 15px; border-radius: 8px; margin: 10px 0;">
+            <h4 style="color: white; margin: 0; text-align: center;">
+                📋 {len(filtros_configurados)} Filtro(s) Configurado(s)
+            </h4>
+        </div>
+        """, unsafe_allow_html=True)
         
-        # Extrair todos os campos de endereço
-        campos_endereco = {}
-        for _, row in df_filtrado.iterrows():
-            endereco_data = extrair_campos_endereco(row['Endereco'])
-            for campo, valor in endereco_data.items():
-                if campo not in campos_endereco:
-                    campos_endereco[campo] = set()
-                if valor and str(valor).strip() != '':
-                    campos_endereco[campo].add(str(valor).strip())
-        
-        # Criar filtros para cada campo de endereço
-        if campos_endereco:
-            # Organizar campos em ordem específica
-            ordem_campos = ['Uf', 'Cidade', 'Bairro', 'Rua', 'Numero', 'Cep', 'Complemento']
-            campos_ordenados = []
-            
-            for campo in ordem_campos:
-                if campo in campos_endereco:
-                    campos_ordenados.append(campo)
-            
-            # Adicionar outros campos que não estão na ordem específica
-            for campo in campos_endereco.keys():
-                if campo not in campos_ordenados:
-                    campos_ordenados.append(campo)
-            
-            # Criar filtros em colunas
-            num_colunas_endereco = min(4, len(campos_ordenados))
-            colunas_endereco = st.columns(num_colunas_endereco)
-            
-            for i, campo in enumerate(campos_ordenados[:num_colunas_endereco]):
-                with colunas_endereco[i]:
-                    valores_unicos = sorted(list(campos_endereco[campo]))
-                    
-                    if valores_unicos:
-                        # Criar multiselect para o campo
-                        valores_selecionados = st.multiselect(
-                            f"**{campo}:**",
-                            options=valores_unicos,
-                            default=[],
-                            help=f"Selecione um ou mais valores para filtrar por {campo} do endereço"
-                        )
-                        
-                        # Aplicar filtro se valores foram selecionados
-                        if valores_selecionados:
-                            mask_endereco = pd.Series([False] * len(df_filtrado))
-                            
-                            for idx, row in df_filtrado.iterrows():
-                                endereco_data = extrair_campos_endereco(row['Endereco'])
-                                if campo in endereco_data:
-                                    valor_campo = str(endereco_data[campo]).strip()
-                                    if valor_campo in valores_selecionados:
-                                        mask_endereco.iloc[idx] = True
-                            
-                            df_filtrado = df_filtrado[mask_endereco]
-            
-            # Se há mais campos, criar uma segunda linha
-            if len(campos_ordenados) > num_colunas_endereco:
-                campos_restantes_endereco = campos_ordenados[num_colunas_endereco:]
-                num_colunas_endereco2 = min(4, len(campos_restantes_endereco))
-                colunas_endereco2 = st.columns(num_colunas_endereco2)
-                
-                for i, campo in enumerate(campos_restantes_endereco):
-                    if i < num_colunas_endereco2:
-                        with colunas_endereco2[i]:
-                            valores_unicos = sorted(list(campos_endereco[campo]))
-                            
-                            if valores_unicos:
-                                # Criar multiselect para o campo
-                                valores_selecionados = st.multiselect(
-                                    f"**{campo}:**",
-                                    options=valores_unicos,
-                                    default=[],
-                                    help=f"Selecione um ou mais valores para filtrar por {campo} do endereço"
-                                )
-                                
-                                # Aplicar filtro se valores foram selecionados
-                                if valores_selecionados:
-                                    mask_endereco = pd.Series([False] * len(df_filtrado))
-                                    
-                                    for idx, row in df_filtrado.iterrows():
-                                        endereco_data = extrair_campos_endereco(row['Endereco'])
-                                        if campo in endereco_data:
-                                            valor_campo = str(endereco_data[campo]).strip()
-                                            if valor_campo in valores_selecionados:
-                                                mask_endereco.iloc[idx] = True
-                                    
-                                    df_filtrado = df_filtrado[mask_endereco]
-            
-            # Mostrar informações sobre os filtros de endereço aplicados
-            if len(df_filtrado) != len(df_pedidos_enriquecidos):
-                st.markdown(f"""
-                <div style="background: linear-gradient(90deg, #FF9800 0%, #F57C00 100%); padding: 12px; border-radius: 6px; margin: 10px 0;">
-                    <p style="color: white; margin: 0; text-align: center; font-weight: bold;">
-                        🏠 Filtros de Endereço Ativos: {len(df_filtrado)} de {len(df_pedidos_enriquecidos)} registros
-                    </p>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div style="background: linear-gradient(90deg, #9E9E9E 0%, #757575 100%); padding: 12px; border-radius: 6px; margin: 10px 0;">
-                <p style="color: white; margin: 0; text-align: center; font-weight: bold;">
-                    🏠 Nenhum campo de endereço encontrado nos dados
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
+        st.markdown("**Filtros atualmente configurados:**")
+        for filtro in filtros_configurados:
+            st.markdown(f"• {filtro}")
     else:
         st.markdown("""
-        <div style="background: linear-gradient(90deg, #9E9E9E 0%, #757575 100%); padding: 12px; border-radius: 6px; margin: 10px 0;">
-            <p style="color: white; margin: 0; text-align: center; font-weight: bold;">
-                🏠 Campo 'Endereco' não encontrado nos dados
+        <div style="background: linear-gradient(90deg, #9E9E9E 0%, #757575 100%); padding: 15px; border-radius: 8px; margin: 10px 0;">
+            <h4 style="color: white; margin: 0; text-align: center;">
+                ℹ️ Nenhum Filtro Configurado
+            </h4>
+            <p style="color: #f0f0f0; margin: 5px 0 0 0; text-align: center;">
+                Todos os registros serão exibidos
             </p>
         </div>
         """, unsafe_allow_html=True)
     
-    # === RESUMO FINAL DOS FILTROS ===
+    # === BOTÃO DE APLICAÇÃO DE FILTROS ===
+    st.markdown("---")
+    st.markdown("### 🎯 Aplicar Filtros")
+    
+    # Mensagem informativa sobre o comportamento dos filtros
+    if not st.session_state.filtros_aplicados:
+        st.info("ℹ️ **Importante:** Configure todos os filtros desejados acima e clique em 'Aplicar Todos os Filtros' para ver os resultados. Os filtros não são aplicados automaticamente.")
+    else:
+        st.success("✅ **Filtros aplicados!** Os dados abaixo refletem os filtros selecionados. Use 'Limpar Todos os Filtros' para voltar a ver todos os registros.")
+    
+    # Debug temporário - remover depois
+    with st.expander("🔧 Debug - Status dos Filtros", expanded=False):
+        st.write(f"**Filtros aplicados:** {st.session_state.filtros_aplicados}")
+        st.write(f"**Tamanho do DataFrame filtrado:** {len(st.session_state.df_filtrado_atual)}")
+        st.write(f"**Tamanho do DataFrame base:** {len(df_base)}")
+        st.write(f"**Loja selecionada:** {loja_selecionada}")
+        st.write(f"**Nome selecionado:** {nome_selecionado}")
+        st.write(f"**Status selecionado:** {status_selecionado}")
+        st.write(f"**Busca:** {busca_loja}")
+    
+    st.markdown("*Configure todos os filtros acima e clique no botão abaixo para aplicar*")
+    
+    # Botão para aplicar filtros
+    col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
+    
+    with col_btn2:
+        aplicar_filtros = st.button(
+            "🔍 Aplicar Todos os Filtros",
+            type="primary",
+            use_container_width=True,
+            help="Clique para aplicar todos os filtros selecionados acima"
+        )
+        
+        limpar_filtros = st.button(
+            "🗑️ Limpar Todos os Filtros",
+            type="secondary",
+            use_container_width=True,
+            help="Clique para limpar todos os filtros e mostrar todos os registros"
+        )
+    
+    # Aplicar filtros quando o botão for clicado (com debounce)
+    if aplicar_filtros:
+        tempo_atual = time.time()
+        # Debounce de 1 segundo para evitar aplicações múltiplas
+        if tempo_atual - st.session_state.ultima_aplicacao > 1:
+            with st.spinner("Aplicando filtros..."):
+                try:
+                    df_filtrado = aplicar_todos_filtros(
+                        df_base, loja_selecionada, nome_selecionado, cpf_cnpj_selecionado, 
+                        representante_selecionado, status_selecionado, tipo_venda_selecionado,
+                        data_inicio, data_fim, busca_loja, filtros_avancados, filtros_endereco
+                    )
+                    st.session_state.df_filtrado_atual = df_filtrado
+                    st.session_state.filtros_aplicados = True
+                    st.session_state.ultima_aplicacao = tempo_atual
+                    st.success(f"✅ Filtros aplicados! {len(df_filtrado)} de {len(df_base)} registros encontrados.")
+                    # Forçar rerun para atualizar a interface
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Erro ao aplicar filtros: {str(e)}")
+        else:
+            st.warning("⏳ Aguarde um momento antes de aplicar filtros novamente.")
+    
+    # Limpar filtros quando o botão for clicado
+    if limpar_filtros:
+        st.session_state.df_filtrado_atual = df_base.copy()
+        st.session_state.filtros_aplicados = False
+        # Limpar todos os filtros do estado da sessão
+        st.session_state.loja_selecionada = []
+        st.session_state.nome_selecionado = []
+        st.session_state.cpf_cnpj_selecionado = []
+        st.session_state.representante_selecionado = []
+        st.session_state.status_selecionado = []
+        st.session_state.tipo_venda_selecionado = []
+        st.session_state.data_inicio = None
+        st.session_state.data_fim = None
+        st.session_state.busca_loja = ""
+        st.session_state.filtros_avancados = {}
+        st.session_state.filtros_endereco = {}
+        st.success("🗑️ Todos os filtros foram limpos!")
+        # Forçar rerun para atualizar a interface
+        st.rerun()
+    
+    # Usar dados filtrados da sessão
+    df_filtrado = st.session_state.df_filtrado_atual
+    
+    # === STATUS DOS FILTROS ===
     st.markdown("---")
     
-    # Container final para resumo dos resultados
-    if len(df_filtrado) != len(df_pedidos_enriquecidos):
+    # Indicador de status dos filtros
+    if st.session_state.filtros_aplicados:
         st.markdown(f"""
         <div style="background: linear-gradient(90deg, #E91E63 0%, #C2185B 100%); padding: 20px; border-radius: 10px; margin: 20px 0;">
             <h3 style="color: white; margin: 0; text-align: center;">
-                📊 Resultados Finais
+                📊 Filtros Aplicados - Resultados Finais
             </h3>
             <p style="color: #f0f0f0; text-align: center; margin: 10px 0 0 0; font-size: 18px;">
-                Mostrando {len(df_filtrado)} de {len(df_pedidos_enriquecidos)} pedidos
+                Mostrando {len(df_filtrado)} de {len(df_base)} pedidos
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -1027,7 +1272,7 @@ def main():
         st.markdown(f"""
         <div style="background: linear-gradient(90deg, #4CAF50 0%, #388E3C 100%); padding: 20px; border-radius: 10px; margin: 20px 0;">
             <h3 style="color: white; margin: 0; text-align: center;">
-                📊 Todos os Registros
+                📊 Todos os Registros (Sem Filtros)
             </h3>
             <p style="color: #f0f0f0; text-align: center; margin: 10px 0 0 0; font-size: 18px;">
                 Exibindo todos os {len(df_filtrado)} pedidos disponíveis
@@ -1037,7 +1282,53 @@ def main():
     
     st.markdown("---")
     
-    # Tabs para diferentes visualizações
+    # Verificar se filtros foram aplicados antes de mostrar visualizações
+    if not st.session_state.filtros_aplicados:
+        st.markdown("""
+        <div style="background: linear-gradient(90deg, #FF9800 0%, #F57C00 100%); padding: 30px; border-radius: 15px; margin: 20px 0; text-align: center;">
+            <h2 style="color: white; margin: 0 0 15px 0; font-size: 28px;">
+                🔍 Configure e Aplique os Filtros
+            </h2>
+            <p style="color: #f0f0f0; margin: 0; font-size: 18px;">
+                Para visualizar os dados, configure os filtros desejados acima e clique em "Aplicar Todos os Filtros"
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Mostrar apenas informações básicas sem filtros
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric(
+                label="Total de Pedidos",
+                value=len(df_base),
+                delta=None
+            )
+        
+        with col2:
+            st.metric(
+                label="Total de Lojas",
+                value=len(df_lojas),
+                delta=None
+            )
+        
+        with col3:
+            st.metric(
+                label="Status",
+                value="Aguardando Filtros",
+                delta=None
+            )
+        
+        with col4:
+            st.metric(
+                label="Ação",
+                value="Aplicar Filtros",
+                delta=None
+            )
+        
+        st.stop()  # Para a execução aqui se não há filtros aplicados
+    
+    # Tabs para diferentes visualizações (só aparece se filtros foram aplicados)
     tab1, tab2 = st.tabs(["📋 Lista de Pedidos", "📊 Estatísticas"])
     
     with tab1:
